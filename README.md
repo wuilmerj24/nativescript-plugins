@@ -8,34 +8,6 @@
 - [@wuilmerj24/time-range](packages/time-range/README.md)
 - [@wuilmerj24/url-preview](packages/url-preview/README.md)
 
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-
 Contributions are always welcome!
 
 ## Buy Me a Coffee
