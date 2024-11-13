@@ -210,9 +210,9 @@ module.exports = {
 				script: 'nx run url-preview:focus',
 				description: 'Focus on @wuilmerj24/url-preview',
 			},
-			'media-editor': {
-				script: 'nx run media-editor:focus',
-				description: 'Focus on @wuilmerj24/media-editor',
+			'photo-editor': {
+				script: 'nx run photo-editor:focus',
+				description: 'Focus on @wuilmerj24/photo-editor',
 			},
 			reset: {
         script: 'nx g @wuilmerj24/plugin-tools:focus-packages',

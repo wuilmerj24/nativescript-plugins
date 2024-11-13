@@ -46,8 +46,9 @@
       "@wuilmerj24/url-preview": [
         "../../packages/url-preview/index.d.ts"
       ],
-      "@wuilmerj24/media-editor": [
-        "../../packages/media-editor/index.d.ts"
+      "@wuilmerj24/photo-editor": [
+        "../../packages/photo-editor/index.d.ts"
+
       ]
     }
   }
