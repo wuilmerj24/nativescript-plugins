@@ -173,8 +173,12 @@ public class SignalrForNs:NSObject{
          
 
         // Envía los argumentos como una lista de elementos 'Encodable'
-      let jsonData = JSON(data ?? NSNull())
-      arguments.append(EncodableJSON(jsonData))
+      if let dataArray = data as? [Any] {
+        for item in dataArray {
+          let jsonData = JSON(item ?? NSNull())
+          arguments.append(EncodableJSON(jsonData))
+        }
+      }
 
       print("setSend \(arguments)")
         signalr.invoke(method: eventName, arguments: arguments) { error in
