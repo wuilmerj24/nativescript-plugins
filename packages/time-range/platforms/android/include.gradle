@@ -1,0 +1,3 @@
+dependencies{
+    implementation 'nl.joery.timerangepicker:timerangepicker:1.0.0'
+}

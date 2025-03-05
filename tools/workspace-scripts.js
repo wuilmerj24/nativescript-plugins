@@ -55,12 +55,54 @@ module.exports = {
       },
     },
     '⚙️': {
-      script: `npx cowsay "@nativescript/* packages will keep your ⚙️ cranking"`,
-      description: '_____________  @nativescript/*  _____________',
+      script: `npx cowsay "@wuilmerj24/* packages will keep your ⚙️ cranking"`,
+      description: '_____________  @wuilmerj24/*  _____________',
     },
     // packages
     // build output is always in dist/packages
-    '@nativescript': {
+    '@wuilmerj24': {
+      // @wuilmerj24/wj24secrets
+      wj24secrets: {
+        build: {
+          script: 'nx run wj24secrets:build.all',
+          description: '@wuilmerj24/wj24secrets: Build',
+        },
+      },
+      // @wuilmerj24/gallery-view
+      'gallery-view': {
+        build: {
+          script: 'nx run gallery-view:build.all',
+          description: '@wuilmerj24/gallery-view: Build',
+        },
+      },
+      // @wuilmerj24/gallery-view
+      'gallery-view': {
+        build: {
+          script: 'nx run gallery-view:build.all',
+          description: '@wuilmerj24/gallery-view: Build',
+        },
+      },
+      // @wuilmerj24/country-code
+      'country-code': {
+        build: {
+          script: 'nx run country-code:build.all',
+          description: '@wuilmerj24/country-code: Build',
+        },
+      },
+      // @wuilmerj24/bedtime
+      bedtime: {
+        build: {
+          script: 'nx run bedtime:build.all',
+          description: '@wuilmerj24/bedtime: Build',
+        },
+      },
+      // @wuilmerj24/time-range
+      'time-range': {
+        build: {
+          script: 'nx run time-range:build.all',
+          description: '@wuilmerj24/time-range: Build',
+        },
+      },
       'build-all': {
         script: 'nx run-many --target=build.all --all',
         description: 'Build all packages',
@@ -71,6 +113,30 @@ module.exports = {
       description: '_____________  Focus (VS Code supported)  _____________',
     },
     focus: {
+      wj24secrets: {
+        script: 'nx run wj24secrets:focus',
+        description: 'Focus on @wuilmerj24/wj24secrets',
+      },
+      'gallery-view': {
+        script: 'nx run gallery-view:focus',
+        description: 'Focus on @wuilmerj24/gallery-view',
+      },
+      'gallery-view': {
+        script: 'nx run gallery-view:focus',
+        description: 'Focus on @wuilmerj24/gallery-view',
+      },
+      'country-code': {
+        script: 'nx run country-code:focus',
+        description: 'Focus on @wuilmerj24/country-code',
+      },
+      bedtime: {
+        script: 'nx run bedtime:focus',
+        description: 'Focus on @wuilmerj24/bedtime',
+      },
+      'time-range': {
+        script: 'nx run time-range:focus',
+        description: 'Focus on @wuilmerj24/time-range',
+      },
       reset: {
         script: 'nx g @nativescript/plugin-tools:focus-packages',
         description: 'Reset Focus',

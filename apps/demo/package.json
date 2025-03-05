@@ -4,10 +4,15 @@
   "license": "SEE LICENSE IN <your-license-filename>",
   "repository": "<fill-your-repository-here>",
   "dependencies": {
-    "@nativescript/core": "file:../../node_modules/@nativescript/core"
+    "@nativescript/core": "file:../../node_modules/@nativescript/core",
+    "@wuilmerj24/country-code": "file:../../packages/country-code",
+    "@wuilmerj24/gallery-view": "file:../../packages/gallery-view",
+    "@wuilmerj24/time-range": "file:../../packages/time-range",
+    "@wuilmerj24/wj24secrets": "file:../../packages/wj24secrets"
   },
   "devDependencies": {
     "@nativescript/android": "~8.8.0",
-    "@nativescript/ios": "~8.8.0"
+    "@nativescript/ios": "~8.8.0",
+    "@nativescript/preview-cli": "1.0.14"
   }
 }

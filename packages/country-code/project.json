@@ -1,0 +1,65 @@
+{
+  "name": "country-code",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/country-code",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/country-code",
+        "tsConfig": "packages/country-code/tsconfig.json",
+        "packageJson": "packages/country-code/package.json",
+        "main": "packages/country-code/index.d.ts",
+        "assets": [
+          "packages/country-code/*.md",
+          "packages/country-code/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/country-code/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["node tools/scripts/build-finish.ts country-code"],
+        "parallel": false
+      },
+      "outputs": ["{workspaceRoot}/dist/packages/country-code"],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["nx g @nativescript/plugin-tools:focus-packages country-code"],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": ["packages/country-code/**/*.ts"]
+      }
+    }
+  },
+  "tags": []
+}

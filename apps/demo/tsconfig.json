@@ -5,7 +5,13 @@
     "baseUrl": ".",
     "paths": {
       "~/*": ["src/*"],
-      "@demo/shared": ["../../tools/demo/index.ts"]
+      "@demo/shared": ["../../tools/demo/index.ts"],
+      "@wuilmerj24/*": ["../../packages/*"],
+      "@wuilmerj24/wj24secrets": ["../../packages/wj24secrets/index.d.ts"],
+      "@wuilmerj24/gallery-view": ["../../packages/gallery-view/index.d.ts"],
+      "@wuilmerj24/country-code": ["../../packages/country-code/index.d.ts"],
+      "@wuilmerj24/bedtime": ["../../packages/bedtime/index.d.ts"],
+      "@wuilmerj24/time-range": ["../../packages/time-range/index.d.ts"]
     }
   }
 }

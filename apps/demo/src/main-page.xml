@@ -6,6 +6,12 @@
     <ScrollView class="h-full">
       <StackLayout>
         <Button text="add a package first" tap="{{ viewDemo }}" class="btn btn-primary view-demo"/>
+<Button text="wj24secrets" tap="{{ viewDemo }}" class="btn btn-primary view-demo"/>
+<Button text="gallery-view" tap="{{ viewDemo }}" class="btn btn-primary view-demo"/>
+<Button text="country-code" tap="{{ viewDemo }}" class="btn btn-primary view-demo"/>
+<Button text="time-range" tap="{{ viewDemo }}" class="btn btn-primary view-demo"/>
+
+
       </StackLayout>
     </ScrollView>
   </StackLayout>

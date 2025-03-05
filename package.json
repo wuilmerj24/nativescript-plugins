@@ -1,6 +1,6 @@
 {
   "name": "plugins",
-  "version": "0.0.0",
+  "version": "2.0.0",
   "license": "MIT",
   "scripts": {
     "postinstall": "husky && npx ts-patch install",
@@ -42,5 +42,8 @@
     "**/*.{js,ts,scss,json,html}": [
       "npx prettier --write"
     ]
+  },
+  "dependencies": {
+    "@nativescript-community/perms": "^3.0.3"
   }
 }

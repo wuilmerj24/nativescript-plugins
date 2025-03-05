@@ -1,0 +1,65 @@
+{
+  "name": "wj24secrets",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/wj24secrets",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/wj24secrets",
+        "tsConfig": "packages/wj24secrets/tsconfig.json",
+        "packageJson": "packages/wj24secrets/package.json",
+        "main": "packages/wj24secrets/index.d.ts",
+        "assets": [
+          "packages/wj24secrets/*.md",
+          "packages/wj24secrets/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/wj24secrets/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["node tools/scripts/build-finish.ts wj24secrets"],
+        "parallel": false
+      },
+      "outputs": ["{workspaceRoot}/dist/packages/wj24secrets"],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["nx g @nativescript/plugin-tools:focus-packages wj24secrets"],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": ["packages/wj24secrets/**/*.ts"]
+      }
+    }
+  },
+  "tags": []
+}

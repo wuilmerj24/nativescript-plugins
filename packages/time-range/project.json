@@ -1,0 +1,65 @@
+{
+  "name": "time-range",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/time-range",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/time-range",
+        "tsConfig": "packages/time-range/tsconfig.json",
+        "packageJson": "packages/time-range/package.json",
+        "main": "packages/time-range/index.d.ts",
+        "assets": [
+          "packages/time-range/*.md",
+          "packages/time-range/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/time-range/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["node tools/scripts/build-finish.ts time-range"],
+        "parallel": false
+      },
+      "outputs": ["{workspaceRoot}/dist/packages/time-range"],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["nx g @nativescript/plugin-tools:focus-packages time-range"],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": ["packages/time-range/**/*.ts"]
+      }
+    }
+  },
+  "tags": []
+}

@@ -1,7 +1,11 @@
 {
   "main": "./src/main.ts",
   "dependencies": {
-    "@nativescript/core": "file:../../node_modules/@nativescript/core"
+    "@nativescript/core": "file:../../node_modules/@nativescript/core",
+    "@wuilmerj24/wj24secrets": "file:../../dist/packages/wj24secrets",
+    "@wuilmerj24/gallery-view": "file:../../dist/packages/gallery-view",
+    "@wuilmerj24/country-code": "file:../../dist/packages/country-code",
+    "@wuilmerj24/time-range": "file:../../dist/packages/time-range"
   },
   "devDependencies": {
     "@nativescript/android": "~8.8.0",

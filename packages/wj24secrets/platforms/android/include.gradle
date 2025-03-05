@@ -1,0 +1,15 @@
+android{
+    compileSdkVersion 34
+    buildToolsVersion "34"
+	defaultConfig {
+		multiDexEnabled true
+		minSdkVersion 24
+		targetSdkVersion 34
+		
+	}
+}
+
+dependencies {
+	implementation 'androidx.multidex:multidex:2.0.1'
+  	//implementation "upinn.tech:wj24secrets_android:1.2.4"
+}
