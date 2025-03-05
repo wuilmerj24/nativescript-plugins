@@ -1,7 +1,7 @@
 {
   "name": "@wuilmerj24/country-code",
   "version": "1.0.4",
-  "description": "Add a plugin description",
+  "description": "A NativeScript plugin to display country codes with flags. Use it in a modal or generate a fully customizable list for your app. Perfect for phone number inputs, country selection, and internationalization.",
   "main": "index",
   "types": "index.d.ts",
   "nativescript": {

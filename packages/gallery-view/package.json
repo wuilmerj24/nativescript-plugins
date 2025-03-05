@@ -1,7 +1,7 @@
 {
   "name": "@wuilmerj24/gallery-view",
   "version": "1.0.6",
-  "description": "Add a plugin description",
+  "description": "A NativeScript plugin to access and preview images and videos from the device gallery. Easily integrate media browsing and selection into your app with a customizable gallery view.",
   "main": "index",
   "types": "index.d.ts",
   "nativescript": {
@@ -19,7 +19,13 @@
     "JavaScript",
     "TypeScript",
     "iOS",
-    "Android"
+    "Android",
+    "gallery",
+    "image picker",
+    "video picker",
+    "media browser",
+    "image preview",
+    "video preview"
   ],
   "author": {
     "name": "Wuilmer Medrano",

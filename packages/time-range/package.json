@@ -1,7 +1,7 @@
 {
   "name": "@wuilmerj24/time-range",
   "version": "1.0.5",
-  "description": "Add a plugin description",
+  "description": "A NativeScript plugin to easily select and manage time ranges. Perfect for scheduling, alarms, or any app that requires time interval selection.",
   "main": "index",
   "types": "index.d.ts",
   "nativescript": {
@@ -18,6 +18,11 @@
     "NativeScript",
     "JavaScript",
     "TypeScript",
+    "time range",
+    "time picker",
+    "scheduling",
+    "alarms",
+    "time interval",
     "iOS",
     "Android"
   ],

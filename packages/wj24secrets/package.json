@@ -1,7 +1,7 @@
 {
   "name": "@wuilmerj24/wj24secrets",
   "version": "1.0.2",
-  "description": "Add a plugin description",
+  "description": "A NativeScript plugin to securely retrieve secrets from the Wj24secrets service. Easily integrate secret management into your app for secure storage and access.",
   "main": "index",
   "types": "index.d.ts",
   "nativescript": {
@@ -16,6 +16,10 @@
   },
   "keywords": [
     "NativeScript",
+    "secrets management",
+    "secure storage",
+    "Wj24secrets",
+    "encryption",
     "JavaScript",
     "TypeScript",
     "iOS",
