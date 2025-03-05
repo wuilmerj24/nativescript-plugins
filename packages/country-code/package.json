@@ -30,6 +30,5 @@
   },
   "license": "Apache-2.0",
   "homepage": "https://github.com/wuilmerj24/nativescript-plugins.git",
-  "readmeFilename": "README.md",
-  "bootstrapper": "@nativescript/plugin-seed"
+  "readmeFilename": "README.md"
 }
