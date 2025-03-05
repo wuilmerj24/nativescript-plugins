@@ -3,59 +3,28 @@
 - [@wuilmerj24/time-range](packages/time-range/README.md)
 - [@wuilmerj24/wj24secrets](packages/wj24secrets/README.md)
 
-# How to use?
+Contributions are always welcome!
 
-This workspace manages the suite of plugins listed above. 
+## Buy Me a Coffee | Patreon
 
-## Prerequisites
+If you find these plugins helpful and want to support the development of more plugins, you can buy me a coffee. Your support is greatly appreciated!
 
-- Node 18+ is recommended
-- [yarn v1](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable) is required
+<p align="left">
+  <a href="https://buymeacoffee.com/wuilmerj24" target="_blank">
+    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;">
+  </a>
+</p>
 
-In general, when in doubt with what to do, just `npm start`.
+[![Patreon](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/wuilmerj24)
 
-## How to add a new package to workspace?
+## Request a Plugin
 
-```
-npm run add
-```
+If you need a specific plugin that is not listed here, you can request it. Please note that this service is paid. For more details, feel free to contact me.
 
-At the prompt, enter the name of the new package.
+## Contribute
 
-- This adds a plugin harness in `packages` with the necessary boilerplate to just start developing
-- Updates all demo app flavors to support demoing the new package
-- Adds shared code in `tools/demo` where you can write demo code **once** and share across all demo flavors
-- Updates build tooling to support the new package
-- Updates the `npm start` interactive display
-- Updates the README here to list the new package
+You can contribute to this project by following these steps:
 
-## How to add Angular compatibility to a package
-
-```
-npm run add-angular
-```
-
-At the prompt, enter the name of the package to add an `angular` folder to it with the necessary boilerplate to provide Angular support to the package.
-
-## How to focus on just 1 package to develop in isolation
-
-```
-npm start
-```
-
-- Choose the focus commands for the package you wish to focus on and hit enter.
-- All the demo app's will be updated to isolate that 1 package and for supported IDE's (currently VS Code), the source code will also become isolated in the workspace.
-
-Note: *good to always clean the demo you plan to run after focusing. (You can clean any demo from `npm start` as well)*
-
-## How to publish packages?
-
-```
-npm run publish-packages
-```
-
-- You will be prompted for the package names to publish. Leaving blank and hitting enter will publish them all.
-- You will then be prompted for the version to use. Leaving blank will auto bump the patch version (it also handles prerelease types like alpha, beta, rc, etc. - It even auto tags the corresponding prelease type on npm).
-- You will then be given a brief sanity check 🧠😊
-
-<h3 align="center">Made with ❤️</h3>
+1. Clone this repository.
+2. Create a new repository with your changes.
+3. Share the link to your repository with me.
