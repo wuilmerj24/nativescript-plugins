@@ -58,6 +58,9 @@
       ],
       "@wuilmerj24/url-preview": [
         "packages/url-preview/index.d.ts"
+      ],
+      "@wuilmerj24/country-code/angular": [
+        "packages/country-code/angular/index.ts"
       ]
     }
   },
