@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/screen-orientation",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "It gives you simple and effective control over your NativeScript app's screen orientation. With this plugin, you can easily manage how your user interface is displayed, adapting it to your app's specific needs.",
   "main": "index",
   "types": "index.d.ts",

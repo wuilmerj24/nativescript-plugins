@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/screen-protector",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A NativeScript plugin to enhance app security by preventing screenshots and screen recordings. Includes real-time detection of capture events on iOS and automatically applies screen protection on both Android and iOS. Ideal for protecting sensitive content such as videos, documents, and secure views in mobile applications.",
   "main": "index",
   "types": "index.d.ts",

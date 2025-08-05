@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/sqlite-secure",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "This a library for nativescript, compatible whit Android and iOS that provides transparent 256-bit AES encryption for SQLite database files. It ensures that data stored in the database is secure and protected from unauthorized access.",
   "main": "index",
   "types": "index.d.ts",

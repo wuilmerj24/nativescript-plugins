@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/url-preview",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "This powerful plugin lets you effortlessly extract crucial information from any web link, including the title, description, and even a preview image or video. Enhance your app's user experience by providing engaging and informative link previews, just like popular social media platforms.",
   "main": "index",
   "types": "index.d.ts",

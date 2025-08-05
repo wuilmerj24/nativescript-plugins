@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/signalr",
-  "version": "1.0.2",
+  "version": "1.0.9",
   "description": "It is a plugin for NativeScript applications that allows integration of SignalR, the ASP.NET library for real-time communication, directly into iOS and Android mobile apps.",
   "main": "index",
   "types": "index.d.ts",
