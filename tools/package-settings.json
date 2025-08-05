@@ -1,0 +1,23 @@
+{
+  "name": "@wuilmerj24",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wuilmerj24/nativescript-plugins.git"
+  },
+  "keywords": [
+    "NativeScript",
+    "JavaScript",
+    "TypeScript",
+    "iOS",
+    "Android"
+  ],
+  "author": {
+    "name": "Wuilmer Medrano",
+    "email": "wilmermorgado24@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wuilmerj24/nativescript-plugins/issues"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/wuilmerj24/nativescript-plugins"
+}
