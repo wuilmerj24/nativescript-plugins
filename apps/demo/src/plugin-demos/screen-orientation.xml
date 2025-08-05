@@ -1,0 +1,15 @@
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="page">
+    <Page.actionBar>
+        <ActionBar title="screen-orientation" icon="" class="action-bar">
+        </ActionBar>
+    </Page.actionBar>
+    <StackLayout class="p-20">
+        <ScrollView class="h-full">
+          <StackLayout>
+            <Button text="GetOrientacion" tap="{{ getOrientaicon }}" class="btn btn-primary"/>
+            <Button text="SetOrientacion" tap="{{ setOrientationF }}" class="btn btn-primary"/>
+
+          </StackLayout>
+        </ScrollView>
+    </StackLayout>
+</Page>

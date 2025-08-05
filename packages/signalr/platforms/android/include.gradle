@@ -1,0 +1,18 @@
+dependencies {
+    implementation 'com.microsoft.signalr:signalr:9.0.7'
+    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'com.google.code.gson:gson:2.13.1'
+    implementation 'org.slf4j:slf4j-jdk14:2.1.0-alpha1'
+    implementation 'io.reactivex.rxjava3:rxjava:3.1.10'
+}
+
+android{
+    compileSdkVersion 35
+    defaultConfig {
+        multiDexEnabled true
+    }
+	compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

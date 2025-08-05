@@ -1,0 +1,19 @@
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="page">
+    <Page.actionBar>
+        <ActionBar title="screen-protector" icon="" class="action-bar">
+        </ActionBar>
+    </Page.actionBar>
+    <StackLayout class="p-20">
+        <ScrollView class="h-full">
+          <StackLayout>
+            <Image id="lockImage" src="{{icono}}" stretch="aspectFit" horizontalAlignment="center" class="img" tintColor="green"/>
+          
+            <Button text="Lock" tap="{{ lockscreen }}" class="btn btn-primary"/>
+            <Button text="UnLock" tap="{{ unlockscreen }}" class="btn btn-primary"/>
+            <Button text="ScreenShotEvent" tap="{{ screenshotevent }}" class="btn btn-primary"/>
+            <Button text="ScreenRecordEvent" tap="{{ screenrecordevent }}" class="btn btn-primary"/>
+
+          </StackLayout>
+        </ScrollView>
+    </StackLayout>
+</Page>

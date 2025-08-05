@@ -1,0 +1,73 @@
+{
+  "name": "screen-protector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/screen-protector",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/screen-protector",
+        "tsConfig": "packages/screen-protector/tsconfig.json",
+        "packageJson": "packages/screen-protector/package.json",
+        "main": "packages/screen-protector/index.d.ts",
+        "assets": [
+          "packages/screen-protector/*.md",
+          "packages/screen-protector/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/screen-protector/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node tools/scripts/build-finish.ts screen-protector"
+        ],
+        "parallel": false
+      },
+      "outputs": [
+        "{workspaceRoot}/dist/packages/screen-protector"
+      ],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx g @nativescript/plugin-tools:focus-packages screen-protector"
+        ],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "packages/screen-protector/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

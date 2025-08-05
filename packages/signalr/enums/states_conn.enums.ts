@@ -1,0 +1,5 @@
+export enum EStateConn {
+    CONNECTED = 'CONNECTED',
+    CONNECTING = 'CONNECTING',
+    DISCONNECTED = 'DISCONNECTED',
+}

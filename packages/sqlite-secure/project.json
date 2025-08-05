@@ -1,0 +1,73 @@
+{
+  "name": "sqlite-secure",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/sqlite-secure",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/sqlite-secure",
+        "tsConfig": "packages/sqlite-secure/tsconfig.json",
+        "packageJson": "packages/sqlite-secure/package.json",
+        "main": "packages/sqlite-secure/index.d.ts",
+        "assets": [
+          "packages/sqlite-secure/*.md",
+          "packages/sqlite-secure/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/sqlite-secure/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node tools/scripts/build-finish.ts sqlite-secure"
+        ],
+        "parallel": false
+      },
+      "outputs": [
+        "{workspaceRoot}/dist/packages/sqlite-secure"
+      ],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx g @nativescript/plugin-tools:focus-packages sqlite-secure"
+        ],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "packages/sqlite-secure/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

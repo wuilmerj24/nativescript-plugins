@@ -1,0 +1,34 @@
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" xmlns:tr="@wuilmerj24/time-range" navigatingTo="navigatingTo" class="page">
+    <Page.actionBar>
+        <ActionBar title="time-range" icon="" class="action-bar">
+        </ActionBar>
+    </Page.actionBar>
+    <StackLayout class="p-20">
+      <tr:TimeRange 
+        width="500" 
+        height="500"
+        
+        circleWidth="50"
+        circleColor="#40E0D0" 
+        numberColor="#FF7F50"
+        numberSize="40"
+        rangerSize="50"
+        rangerColor="#DA70D6"
+        thumbStartColor="#E6E6FA"
+        thumbEndColor="#E9967A"
+        insideRangeColor="#FF69B4"
+        startImage="icon"
+        endImage="icon"
+        showInsideRange="true"
+        setTimeRange="12,0,6,0"
+        showGradiantColor="false"
+        startGradiantColor="green"
+        middleGradiantColor="blue"
+        endGradiantColor="yellow"
+        drag="{{onDrag}}" 
+        showTicks="true"
+        showLabel="true"
+        opacityCircle="0.5"
+      />
+    </StackLayout>
+</Page>

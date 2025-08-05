@@ -1,0 +1,73 @@
+{
+  "name": "launch-navigator",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/launch-navigator",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/launch-navigator",
+        "tsConfig": "packages/launch-navigator/tsconfig.json",
+        "packageJson": "packages/launch-navigator/package.json",
+        "main": "packages/launch-navigator/index.d.ts",
+        "assets": [
+          "packages/launch-navigator/*.md",
+          "packages/launch-navigator/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/launch-navigator/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node tools/scripts/build-finish.ts launch-navigator"
+        ],
+        "parallel": false
+      },
+      "outputs": [
+        "{workspaceRoot}/dist/packages/launch-navigator"
+      ],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx g @nativescript/plugin-tools:focus-packages launch-navigator"
+        ],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "packages/launch-navigator/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

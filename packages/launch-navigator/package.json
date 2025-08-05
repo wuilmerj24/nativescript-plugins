@@ -1,0 +1,35 @@
+{
+  "name": "@wuilmerj24/launch-navigator",
+  "version": "1.0.4",
+  "description": "It is a NativeScript plugin that allows you to easily verify if the most popular navigation apps (Google Maps, Waze, Baidu Map, and Apple Maps on iOS) are installed and open preconfigured routes with origin, destination, and transport mode directly in the native application.",
+  "main": "index",
+  "types": "index.d.ts",
+  "nativescript": {
+    "platforms": {
+      "ios": "6.0.0",
+      "android": "6.0.0"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NativeScript/plugins.git"
+  },
+  "keywords": [
+    "NativeScript",
+    "JavaScript",
+    "TypeScript",
+    "iOS",
+    "Android"
+  ],
+  "author": {
+    "name": "NativeScript",
+    "email": "oss@nativescript.org"
+  },
+  "bugs": {
+    "url": "https://github.com/NativeScript/plugins/issues"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/NativeScript/plugins",
+  "readmeFilename": "README.md",
+  "bootstrapper": "@nativescript/plugin-seed"
+}

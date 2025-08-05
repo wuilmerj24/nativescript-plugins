@@ -1,0 +1,17 @@
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="page">
+    <Page.actionBar>
+        <ActionBar title="store-update" icon="" class="action-bar">
+        </ActionBar>
+    </Page.actionBar>
+    <StackLayout class="p-20">
+        <ScrollView class="h-full">
+          <StackLayout>
+            <Button text="Test store-update" tap="{{ testIt }}" class="btn btn-primary"/>
+            <Button text="update" tap="{{ actualizar }}" class="btn btn-primary"/>
+            <Button text="NativeU" tap="{{ nativeupdate }}" class="btn btn-primary"/>
+
+
+          </StackLayout>
+        </ScrollView>
+    </StackLayout>
+</Page>

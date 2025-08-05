@@ -1,0 +1,1 @@
+pod 'SQLCipher', '~>4.9'

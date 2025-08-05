@@ -6,6 +6,16 @@
     <ScrollView class="h-full">
       <StackLayout>
         <Button text="add a package first" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="country-code" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="gallery-view" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="launch-navigator" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="screen-orientation" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="screen-protector" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="signalr" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="sqlite-secure" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="store-update" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="time-range" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="url-preview" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
       </StackLayout>
     </ScrollView>
   </StackLayout>

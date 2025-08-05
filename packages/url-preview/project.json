@@ -1,0 +1,73 @@
+{
+  "name": "url-preview",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/url-preview",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/url-preview",
+        "tsConfig": "packages/url-preview/tsconfig.json",
+        "packageJson": "packages/url-preview/package.json",
+        "main": "packages/url-preview/index.d.ts",
+        "assets": [
+          "packages/url-preview/*.md",
+          "packages/url-preview/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/url-preview/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node tools/scripts/build-finish.ts url-preview"
+        ],
+        "parallel": false
+      },
+      "outputs": [
+        "{workspaceRoot}/dist/packages/url-preview"
+      ],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx g @nativescript/plugin-tools:focus-packages url-preview"
+        ],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "packages/url-preview/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

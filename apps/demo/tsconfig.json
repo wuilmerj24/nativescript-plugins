@@ -15,6 +15,36 @@
       ],
       "@wuilmerj24/*": [
         "../../packages/*"
+      ],
+      "@wuilmerj24/country-code": [
+        "../../packages/country-code/index.d.ts"
+      ],
+      "@wuilmerj24/gallery-view": [
+        "../../packages/gallery-view/index.d.ts"
+      ],
+      "@wuilmerj24/launch-navigator": [
+        "../../packages/launch-navigator/index.d.ts"
+      ],
+      "@wuilmerj24/screen-orientation": [
+        "../../packages/screen-orientation/index.d.ts"
+      ],
+      "@wuilmerj24/screen-protector": [
+        "../../packages/screen-protector/index.d.ts"
+      ],
+      "@wuilmerj24/signalr": [
+        "../../packages/signalr/index.d.ts"
+      ],
+      "@wuilmerj24/sqlite-secure": [
+        "../../packages/sqlite-secure/index.d.ts"
+      ],
+      "@wuilmerj24/store-update": [
+        "../../packages/store-update/index.d.ts"
+      ],
+      "@wuilmerj24/time-range": [
+        "../../packages/time-range/index.d.ts"
+      ],
+      "@wuilmerj24/url-preview": [
+        "../../packages/url-preview/index.d.ts"
       ]
     }
   }

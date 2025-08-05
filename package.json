@@ -46,5 +46,8 @@
     "**/*.{js,ts,scss,json,html}": [
       "npx prettier --write"
     ]
+  },
+  "dependencies": {
+    "@nativescript-community/perms": "^3.0.4"
   }
 }

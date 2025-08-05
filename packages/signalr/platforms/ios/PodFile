@@ -1,0 +1,2 @@
+pod 'SwiftSignalRClient'
+pod 'SwiftyJSON', '~> 5.0.2'

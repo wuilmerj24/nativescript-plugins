@@ -1,0 +1,16 @@
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" xmlns:up="@wuilmerj24/url-preview" navigatingTo="navigatingTo" class="page">
+    <Page.actionBar>
+        <ActionBar title="url-preview" icon="" class="action-bar">
+        </ActionBar>
+    </Page.actionBar>
+    <StackLayout class="p-20">
+        <ScrollView class="h-full">
+          <StackLayout>
+            <up:UrlPreview url="https://github.com/max-prokopenko/react-native-link-preview" bgColor="blue" titleTextColor="red" descriptionTextColor="red" borderRadiusImage="2" loadingColor="black" borderRadius="20"/>
+          <up:UrlPreview url="https://www.npmjs.com/package/@wuilmerj24/url-preview" bgColor="blue" titleTextColor="red" descriptionTextColor="red" borderRadiusImage="2" loadingColor="black" borderRadius="20"/>
+          <up:UrlPreview url="https://youtu.be/jMDtttKGDlc?si=5Ocu-qKyIOZIdpyM" bgColor="blue" titleTextColor="red" descriptionTextColor="red" borderRadiusImage="2" loadingColor="black" borderRadius="20"/>
+
+          </StackLayout>
+        </ScrollView>
+    </StackLayout>
+</Page>

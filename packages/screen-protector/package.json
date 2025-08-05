@@ -1,0 +1,35 @@
+{
+  "name": "@wuilmerj24/screen-protector",
+  "version": "1.0.2",
+  "description": "A NativeScript plugin to enhance app security by preventing screenshots and screen recordings. Includes real-time detection of capture events on iOS and automatically applies screen protection on both Android and iOS. Ideal for protecting sensitive content such as videos, documents, and secure views in mobile applications.",
+  "main": "index",
+  "types": "index.d.ts",
+  "nativescript": {
+    "platforms": {
+      "ios": "6.0.0",
+      "android": "6.0.0"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NativeScript/plugins.git"
+  },
+  "keywords": [
+    "NativeScript",
+    "JavaScript",
+    "TypeScript",
+    "iOS",
+    "Android"
+  ],
+  "author": {
+    "name": "NativeScript",
+    "email": "oss@nativescript.org"
+  },
+  "bugs": {
+    "url": "https://github.com/NativeScript/plugins/issues"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/NativeScript/plugins",
+  "readmeFilename": "README.md",
+  "bootstrapper": "@nativescript/plugin-seed"
+}

@@ -1,0 +1,27 @@
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="page">
+    <Page.actionBar>
+        <ActionBar title="sqlite-secure" icon="" class="action-bar">
+        </ActionBar>
+    </Page.actionBar>
+    <StackLayout class="p-20">
+        <ScrollView class="h-full">
+          <StackLayout>
+            <Button text="open" tap="{{open}}" class="btn btn-primary"/>
+            <Button text="isOpen" tap="{{isopen}}" class="btn btn-primary"/>
+            <Button text="deletedb" tap="{{deletedb}}" class="btn btn-primary"/>
+            <Button text="changeVersion" tap="{{changeVersion}}" class="btn btn-primary"/>
+            <Button text="table" tap="{{createTable}}" class="btn btn-primary"/>
+            <Button text="insert" tap="{{innsertData}}" class="btn btn-primary"/>
+            <Button text="select" tap="{{selectData}}" class="btn btn-primary"/>
+            <Button text="select id" tap="{{selectBy}}" class="btn btn-primary"/>
+            <Button text="deleteTable" tap="{{deleteT}}" class="btn btn-primary"/>
+            <Button text="deleteD" tap="{{deleteD}}" class="btn btn-primary"/>
+            <Button text="deleteDone" tap="{{deleteDone}}" class="btn btn-primary"/>
+            <Button text="updateAll" tap="{{updateAll}}" class="btn btn-primary"/>
+            <Button text="update" tap="{{update}}" class="btn btn-primary"/>
+            <Button text="close" tap="{{close}}" class="btn btn-primary"/>
+
+          </StackLayout>
+        </ScrollView>
+    </StackLayout>
+</Page>

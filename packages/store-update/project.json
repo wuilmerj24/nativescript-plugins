@@ -1,0 +1,73 @@
+{
+  "name": "store-update",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/store-update",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/store-update",
+        "tsConfig": "packages/store-update/tsconfig.json",
+        "packageJson": "packages/store-update/package.json",
+        "main": "packages/store-update/index.d.ts",
+        "assets": [
+          "packages/store-update/*.md",
+          "packages/store-update/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/store-update/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node tools/scripts/build-finish.ts store-update"
+        ],
+        "parallel": false
+      },
+      "outputs": [
+        "{workspaceRoot}/dist/packages/store-update"
+      ],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx g @nativescript/plugin-tools:focus-packages store-update"
+        ],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "packages/store-update/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

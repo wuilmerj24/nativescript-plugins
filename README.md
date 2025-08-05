@@ -1,64 +1,30 @@
-# @wuilmerj24/\* plugins
+# 🔌 wuilmerj24 NativeScript Plugins Collection
 
-```
-npm run setup
-npm start
-```
+*Powerful NativeScript plugins for professional mobile development*
+- [@wuilmerj24/country-code](packages/country-code/README.md)
+- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
+- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
+- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
+- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
+- [@wuilmerj24/signalr](packages/signalr/README.md)
+- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
+- [@wuilmerj24/store-update](packages/store-update/README.md)
+- [@wuilmerj24/time-range](packages/time-range/README.md)
+- [@wuilmerj24/url-preview](packages/url-preview/README.md)
 
-- @wuilmerj24
+## Support My Work
 
-# How to use?
+These plugins are created and maintained with love in my free time. If they help you in your projects:
 
-This workspace manages the suite of plugins listed above. 
+[![Buy Me A Coffee](https://img.shields.io/badge/☕_Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/wuilmerj24)  
 
-## Prerequisites
+[![Patreon](https://img.shields.io/badge/🎗_Become_a_Patron-F96854?style=for-the-badge&logo=patreon&logoColor=white)](https://patreon.com/wuilmerj24?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink)  
 
-- Node 20+ is recommended
+[![GitHub Sponsors](https://img.shields.io/badge/💜_Sponsor_on_GitHub-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/wuilmerj24)
 
-In general, when in doubt with what to do, just `npm start`.
-
-## How to add a new package to workspace?
-
-```
-npm run add
-```
-
-At the prompt, enter the name of the new package.
-
-- This adds a plugin harness in `packages` with the necessary boilerplate to just start developing
-- Updates all demo app flavors to support demoing the new package
-- Adds shared code in `tools/demo` where you can write demo code **once** and share across all demo flavors
-- Updates build tooling to support the new package
-- Updates the `npm start` interactive display
-- Updates the README here to list the new package
-
-## How to add Angular compatibility to a package
-
-```
-npm run add-angular
-```
-
-At the prompt, enter the name of the package to add an `angular` folder to it with the necessary boilerplate to provide Angular support to the package.
-
-## How to focus on just 1 package to develop in isolation
-
-```
-npm start
-```
-
-- Choose the focus commands for the package you wish to focus on and hit enter.
-- All the demo app's will be updated to isolate that 1 package and for supported IDE's (currently VS Code), the source code will also become isolated in the workspace.
-
-Note: *good to always clean the demo you plan to run after focusing. (You can clean any demo from `npm start` as well)*
-
-## How to publish packages?
-
-```
-npm run publish-packages
-```
-
-- You will be prompted for the package names to publish. Leaving blank and hitting enter will publish them all.
-- You will then be prompted for the version to use. Leaving blank will auto bump the patch version (it also handles prerelease types like alpha, beta, rc, etc. - It even auto tags the corresponding prelease type on npm).
-- You will then be given a brief sanity check 🧠😊
-
-<h3 align="center">Made with ❤️</h3>
+Your support helps me to:
+- 🚀 Develop new features and plugins
+- 🐛 Fix bugs faster
+- 📚 Create better documentation
+- ⚡ Improve plugin performance
+- 🆕 Maintain plugin compatibility

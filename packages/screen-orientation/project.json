@@ -1,0 +1,73 @@
+{
+  "name": "screen-orientation",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/screen-orientation",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/screen-orientation",
+        "tsConfig": "packages/screen-orientation/tsconfig.json",
+        "packageJson": "packages/screen-orientation/package.json",
+        "main": "packages/screen-orientation/index.d.ts",
+        "assets": [
+          "packages/screen-orientation/*.md",
+          "packages/screen-orientation/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/screen-orientation/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node tools/scripts/build-finish.ts screen-orientation"
+        ],
+        "parallel": false
+      },
+      "outputs": [
+        "{workspaceRoot}/dist/packages/screen-orientation"
+      ],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx g @nativescript/plugin-tools:focus-packages screen-orientation"
+        ],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "packages/screen-orientation/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": []
+}
