@@ -1,0 +1,73 @@
+{
+  "name": "carousel",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/carousel",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/carousel",
+        "tsConfig": "packages/carousel/tsconfig.json",
+        "packageJson": "packages/carousel/package.json",
+        "main": "packages/carousel/index.d.ts",
+        "assets": [
+          "packages/carousel/*.md",
+          "packages/carousel/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/carousel/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node tools/scripts/build-finish.ts carousel"
+        ],
+        "parallel": false
+      },
+      "outputs": [
+        "{workspaceRoot}/dist/packages/carousel"
+      ],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "focus": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx g @nativescript/plugin-tools:focus-packages carousel"
+        ],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "packages/carousel/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

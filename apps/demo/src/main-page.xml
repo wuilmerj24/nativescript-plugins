@@ -16,6 +16,8 @@
 <Button text="store-update" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
 <Button text="time-range" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
 <Button text="url-preview" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+
+<Button text="carousel" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
       </StackLayout>
     </ScrollView>
   </StackLayout>

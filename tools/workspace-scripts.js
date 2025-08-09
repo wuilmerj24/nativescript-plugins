@@ -113,6 +113,20 @@ module.exports = {
 					description: '@wuilmerj24/url-preview: Build',
 				},
 			},
+			// @wuilmerj24/carouselm
+			'carouselm': {
+				build: {
+					script: 'nx run carouselm:build.all',
+					description: '@wuilmerj24/carouselm: Build',
+				},
+			},
+			// @wuilmerj24/carousel
+			'carousel': {
+				build: {
+					script: 'nx run carousel:build.all',
+					description: '@wuilmerj24/carousel: Build',
+				},
+			},
 			'build-all': {
         script: 'nx run-many --target=build.all --all',
         description: 'Build all packages',
@@ -162,6 +176,14 @@ module.exports = {
 			'url-preview': {
 				script: 'nx run url-preview:focus',
 				description: 'Focus on @wuilmerj24/url-preview',
+			},
+			'carouselm': {
+				script: 'nx run carouselm:focus',
+				description: 'Focus on @wuilmerj24/carouselm',
+			},
+			'carousel': {
+				script: 'nx run carousel:focus',
+				description: 'Focus on @wuilmerj24/carousel',
 			},
 			reset: {
         script: 'nx g @nativescript/plugin-tools:focus-packages',

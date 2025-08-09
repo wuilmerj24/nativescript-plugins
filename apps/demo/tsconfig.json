@@ -45,6 +45,12 @@
       ],
       "@wuilmerj24/url-preview": [
         "../../packages/url-preview/index.d.ts"
+      ],
+      "@wuilmerj24/carouselm": [
+        "../../packages/carouselm/index.d.ts"
+      ],
+      "@wuilmerj24/carousel": [
+        "../../packages/carousel/index.d.ts"
       ]
     }
   }

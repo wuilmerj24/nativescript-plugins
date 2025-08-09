@@ -1,4 +1,5 @@
 export * from './utils';
+export * from './carousel';
 export * from './country-code';
 export * from './gallery-view';
 export * from './launch-navigator';
