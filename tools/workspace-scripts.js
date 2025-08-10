@@ -127,6 +127,13 @@ module.exports = {
 					description: '@wuilmerj24/carousel: Build',
 				},
 			},
+			// @wuilmerj24/nosql
+			'nosql': {
+				build: {
+					script: 'nx run nosql:build.all',
+					description: '@wuilmerj24/nosql: Build',
+				},
+			},
 			'build-all': {
         script: 'nx run-many --target=build.all --all',
         description: 'Build all packages',
@@ -184,6 +191,10 @@ module.exports = {
 			'carousel': {
 				script: 'nx run carousel:focus',
 				description: 'Focus on @wuilmerj24/carousel',
+			},
+			'nosql': {
+				script: 'nx run nosql:focus',
+				description: 'Focus on @wuilmerj24/nosql',
 			},
 			reset: {
         script: 'nx g @nativescript/plugin-tools:focus-packages',

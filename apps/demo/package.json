@@ -15,7 +15,8 @@
     "@wuilmerj24/store-update": "file:../../packages/store-update",
     "@wuilmerj24/time-range": "file:../../packages/time-range",
     "@wuilmerj24/url-preview": "file:../../packages/url-preview",
-    "@wuilmerj24/carousel": "file:../../packages/carousel"
+    "@wuilmerj24/carousel": "file:../../packages/carousel",
+    "@wuilmerj24/nosql": "file:../../packages/nosql"
   },
   "devDependencies": {
     "@nativescript/android": "~8.9.0",

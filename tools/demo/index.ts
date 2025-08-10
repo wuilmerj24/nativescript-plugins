@@ -3,6 +3,7 @@ export * from './carousel';
 export * from './country-code';
 export * from './gallery-view';
 export * from './launch-navigator';
+export * from './nosql';
 export * from './screen-orientation';
 export * from './screen-protector';
 export * from './signalr';
