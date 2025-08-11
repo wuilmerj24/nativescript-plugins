@@ -1,5 +1,3 @@
-/// <reference path="android-declarations.d.ts"/>
-
 declare module com {
     export module google {
         export module android {
@@ -2051,10 +2049,6 @@ declare module com {
                         public dispatchDraw(canvas: globalAndroid.graphics.Canvas): void;
                         public constructor(context: globalAndroid.content.Context);
                         public onTouchEvent(y: globalAndroid.view.MotionEvent): boolean;
-                        public setLayoutParams(param0: android.view.ViewGroup.LayoutParams): void;
-                        public setForeground(this_: globalAndroid.graphics.drawable.Drawable): void;
-                        public setBackground(background: globalAndroid.graphics.drawable.Drawable): void;                        
-                        
                     }
                     export module MaskableFrameLayout {
                         export abstract class MaskableDelegate {

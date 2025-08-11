@@ -1,23 +1,23 @@
 {
-  "name": "carousel",
+  "name": "list-pager",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "library",
-  "sourceRoot": "packages/carousel",
+  "sourceRoot": "packages/list-pager",
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
       "options": {
-        "outputPath": "dist/packages/carousel",
-        "tsConfig": "packages/carousel/tsconfig.json",
-        "packageJson": "packages/carousel/package.json",
-        "main": "packages/carousel/index.d.ts",
+        "outputPath": "dist/packages/list-pager",
+        "tsConfig": "packages/list-pager/tsconfig.json",
+        "packageJson": "packages/list-pager/package.json",
+        "main": "packages/list-pager/index.d.ts",
         "assets": [
-          "packages/carousel/*.md",
-          "packages/carousel/index.d.ts",
+          "packages/list-pager/*.md",
+          "packages/list-pager/index.d.ts",
           "LICENSE",
           {
             "glob": "**/*",
-            "input": "packages/carousel/platforms/",
+            "input": "packages/list-pager/platforms/",
             "output": "./platforms/"
           }
         ],
@@ -33,12 +33,12 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "node tools/scripts/build-finish.ts carousel"
+          "node tools/scripts/build-finish.ts list-pager"
         ],
         "parallel": false
       },
       "outputs": [
-        "{workspaceRoot}/dist/packages/carousel"
+        "{workspaceRoot}/dist/packages/list-pager"
       ],
       "dependsOn": [
         {
@@ -55,7 +55,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "nx g @nativescript/plugin-tools:focus-packages carousel"
+          "nx g @nativescript/plugin-tools:focus-packages list-pager"
         ],
         "parallel": false
       }
@@ -64,7 +64,7 @@
       "executor": "@nx/eslint:eslint",
       "options": {
         "lintFilePatterns": [
-          "packages/carousel/**/*.ts"
+          "packages/list-pager/**/*.ts"
         ]
       }
     }

@@ -51,6 +51,9 @@
       ],
       "@wuilmerj24/carousel": [
         "../../packages/carousel/index.d.ts"
+      ],
+      "@wuilmerj24/list-pager": [
+        "../../packages/list-pager/index.d.ts"
       ]
     }
   }

@@ -127,6 +127,27 @@ module.exports = {
 					description: '@wuilmerj24/carousel: Build',
 				},
 			},
+			// @wuilmerj24/carousel
+			'carousel': {
+				build: {
+					script: 'nx run carousel:build.all',
+					description: '@wuilmerj24/carousel: Build',
+				},
+			},
+			// @wuilmerj24/list-pager
+			'list-pager': {
+				build: {
+					script: 'nx run list-pager:build.all',
+					description: '@wuilmerj24/list-pager: Build',
+				},
+			},
+			// @wuilmerj24/list-pager
+			'list-pager': {
+				build: {
+					script: 'nx run list-pager:build.all',
+					description: '@wuilmerj24/list-pager: Build',
+				},
+			},
 			'build-all': {
         script: 'nx run-many --target=build.all --all',
         description: 'Build all packages',
@@ -184,6 +205,18 @@ module.exports = {
 			'carousel': {
 				script: 'nx run carousel:focus',
 				description: 'Focus on @wuilmerj24/carousel',
+			},
+			'carousel': {
+				script: 'nx run carousel:focus',
+				description: 'Focus on @wuilmerj24/carousel',
+			},
+			'list-pager': {
+				script: 'nx run list-pager:focus',
+				description: 'Focus on @wuilmerj24/list-pager',
+			},
+			'list-pager': {
+				script: 'nx run list-pager:focus',
+				description: 'Focus on @wuilmerj24/list-pager',
 			},
 			reset: {
         script: 'nx g @nativescript/plugin-tools:focus-packages',

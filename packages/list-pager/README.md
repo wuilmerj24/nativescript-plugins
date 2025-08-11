@@ -1,7 +1,7 @@
-# @wuilmerj24/carousel
+# @wuilmerj24/list-pager
 
 ```javascript
-npm install @wuilmerj24/carousel
+npm install @wuilmerj24/list-pager
 ```
 
 ## Usage
