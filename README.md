@@ -12,6 +12,21 @@
 - [@wuilmerj24/time-range](packages/time-range/README.md)
 - [@wuilmerj24/url-preview](packages/url-preview/README.md)
 
+## 💡 Need a Custom Solution?
+I develop tailored plugins for specific needs!
+
+### If you require:
+- ✨ Unique functionality not covered by existing plugins
+- 🛠️ Custom integrations with third-party services
+- 📱 Platform-specific optimizations
+- 🔒 Enhanced security features
+
+### → Contact me:
+
+- 📧 wuilmermorgado24@gmail.com
+
+
+
 ## Support My Work
 
 These plugins are created and maintained with love in my free time. If they help you in your projects:
