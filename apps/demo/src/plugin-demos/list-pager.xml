@@ -4,10 +4,12 @@
         </ActionBar>
     </Page.actionBar>
     <StackLayout>
-		<ui:ListPager items="{{items}}" width="100%" height="30%">
+		<ui:ListPager items="{{items}}" width="100%" height="200">
 			<ui:ListPager.itemTemplate>
-                <GridLayout>
-                    <Label text="{{ title }}" class="label" />
+                <GridLayout backgroundColor="blue">
+                    <!-- <Image src="res://icon" stretch="aspectFit" width="100%" height="100%"/> -->
+                    <Label text="{{title}}" textWrap="true" />
+                    
                 </GridLayout>
             </ui:ListPager.itemTemplate>
         </ui:ListPager>

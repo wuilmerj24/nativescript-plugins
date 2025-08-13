@@ -1,109 +1,3 @@
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/list-pager](packages/list-pager/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/list-pager](packages/list-pager/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/carousel](packages/carousel/README.md)
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/carousel](packages/carousel/README.md)
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/carousel](packages/carousel/README.md)
-- [@wuilmerj24/carouselm](packages/carouselm/README.md)
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
-- [@wuilmerj24/carouselm](packages/carouselm/README.md)
-- [@wuilmerj24/country-code](packages/country-code/README.md)
-- [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
-- [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
-- [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
-- [@wuilmerj24/signalr](packages/signalr/README.md)
-- [@wuilmerj24/sqlite-secure](packages/sqlite-secure/README.md)
-- [@wuilmerj24/store-update](packages/store-update/README.md)
-- [@wuilmerj24/time-range](packages/time-range/README.md)
-- [@wuilmerj24/url-preview](packages/url-preview/README.md)
-
 # 🔌 wuilmerj24 NativeScript Plugins Collection
 
 *Powerful NativeScript plugins for professional mobile development*
@@ -117,6 +11,21 @@
 - [@wuilmerj24/store-update](packages/store-update/README.md)
 - [@wuilmerj24/time-range](packages/time-range/README.md)
 - [@wuilmerj24/url-preview](packages/url-preview/README.md)
+
+## 💡 Need a Custom Solution?
+I develop tailored plugins for specific needs!
+
+### If you require:
+- ✨ Unique functionality not covered by existing plugins
+- 🛠️ Custom integrations with third-party services
+- 📱 Platform-specific optimizations
+- 🔒 Enhanced security features
+
+### → Contact me:
+
+- 📧 wuilmermorgado24@gmail.com
+
+
 
 ## Support My Work
 
