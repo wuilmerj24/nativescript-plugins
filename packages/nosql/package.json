@@ -1,7 +1,7 @@
 {
   "name": "@wuilmerj24/nosql",
-  "version": "1.0.0",
-  "description": "Add a plugin description",
+  "version": "0.1.0-beta.1",
+  "description": "A lightweight NoSQL engine for NativeScript, implemented in TypeScript. Supports in-memory and file-based storage with basic CRUD, indexing, and table/database management.",
   "main": "index",
   "types": "index.d.ts",
   "nativescript": {

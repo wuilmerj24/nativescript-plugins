@@ -6,7 +6,19 @@
     <StackLayout class="p-20">
         <ScrollView class="h-full">
           <StackLayout>
-            <Button text="Test nosql" tap="{{ testIt }}" class="btn btn-primary"/>
+            <Button text="Init" tap="{{ init }}" class="btn btn-primary"/>
+            <Button text="UseDB" tap="{{ useDB }}" class="btn btn-primary"/>
+            <Button text="Crear DB" tap="{{ crearBD }}" class="btn btn-primary"/>
+            <Button text="Crear Tabla" tap="{{ crearTabla }}" class="btn btn-primary"/>
+            <Button text="insertar Tabla" tap="{{ insertar }}" class="btn btn-primary"/>
+            <Button text="getUser Tabla" tap="{{ getUser }}" class="btn btn-primary"/>
+            <Button text="Update data" tap="{{ actualizar }}" class="btn btn-primary"/>
+            <Button text="Update all data" tap="{{ actualizarTodo }}" class="btn btn-primary"/>
+            <Button text="Replace all data" tap="{{ replace }}" class="btn btn-primary"/>
+            <Button text="Eliminar item" tap="{{ eliminarItem }}" class="btn btn-primary"/>
+            <Button text="Eliminar all" tap="{{ eliminarTodo }}" class="btn btn-primary"/>
+            <Button text="drop DB" tap="{{ dropDb }}" class="btn btn-primary"/>
+            <Button text="drop Tabla" tap="{{ dropTabla }}" class="btn btn-primary"/>
 
           </StackLayout>
         </ScrollView>

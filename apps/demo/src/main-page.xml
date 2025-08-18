@@ -19,6 +19,10 @@
 
 <Button text="carousel" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
 <Button text="nosql" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+
+
+
+
       </StackLayout>
     </ScrollView>
   </StackLayout>

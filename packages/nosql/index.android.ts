@@ -1,5 +1,4 @@
 import { NosqlCommon } from './common';
+import { knownFolders, path as nsPath } from '@nativescript/core';
 
-export class Nosql extends NosqlCommon {
-
-}
+export class Nosql extends NosqlCommon {}

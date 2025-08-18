@@ -1,12 +1,11 @@
 import { Observable, EventData, Page } from '@nativescript/core';
 import { DemoSharedNosql } from '@demo/shared';
-import { } from '@wuilmerj24/nosql';
+import { Nosql } from '@wuilmerj24/nosql';
+import { check as checkPermission, request as requestPermission } from '@nativescript-community/perms';
 
 export function navigatingTo(args: EventData) {
-	const page = <Page>args.object;
-	page.bindingContext = new DemoModel();
+  const page = <Page>args.object;
+  page.bindingContext = new DemoModel();
 }
 
-export class DemoModel extends DemoSharedNosql {
-	
-}
+export class DemoModel extends DemoSharedNosql {}
