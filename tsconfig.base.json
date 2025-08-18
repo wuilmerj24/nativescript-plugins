@@ -61,6 +61,15 @@
       ],
       "@wuilmerj24/country-code/angular": [
         "packages/country-code/angular/index.ts"
+      ],
+      "@wuilmerj24/carouselm": [
+        "packages/carouselm/index.d.ts"
+      ],
+      "@wuilmerj24/carousel": [
+        "packages/carousel/index.d.ts"
+      ],
+      "@wuilmerj24/nosql": [
+        "packages/nosql/index.d.ts"
       ]
     }
   },

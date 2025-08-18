@@ -1,0 +1,35 @@
+{
+  "name": "@wuilmerj24/nosql",
+  "version": "0.1.0-beta.1",
+  "description": "A lightweight NoSQL engine for NativeScript, implemented in TypeScript. Supports in-memory and file-based storage with basic CRUD, indexing, and table/database management.",
+  "main": "index",
+  "types": "index.d.ts",
+  "nativescript": {
+    "platforms": {
+      "ios": "6.0.0",
+      "android": "6.0.0"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wuilmerj24/nativescript-plugins.git"
+  },
+  "keywords": [
+    "NativeScript",
+    "JavaScript",
+    "TypeScript",
+    "iOS",
+    "Android"
+  ],
+  "author": {
+    "name": "Wuilmer Medrano",
+    "email": "wilmermorgado24@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wuilmerj24/nativescript-plugins/issues"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/wuilmerj24/nativescript-plugins",
+  "readmeFilename": "README.md",
+  "bootstrapper": "@nativescript/plugin-seed"
+}

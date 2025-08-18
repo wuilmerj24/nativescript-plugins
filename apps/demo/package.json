@@ -4,10 +4,13 @@
   "license": "SEE LICENSE IN <your-license-filename>",
   "repository": "<fill-your-repository-here>",
   "dependencies": {
+    "@nativescript-community/perms": "^3.0.4",
     "@nativescript/core": "*",
+    "@wuilmerj24/carousel": "file:../../packages/carousel",
     "@wuilmerj24/country-code": "file:../../packages/country-code",
     "@wuilmerj24/gallery-view": "file:../../packages/gallery-view",
     "@wuilmerj24/launch-navigator": "file:../../packages/launch-navigator",
+    "@wuilmerj24/nosql": "file:../../packages/nosql",
     "@wuilmerj24/screen-orientation": "file:../../packages/screen-orientation",
     "@wuilmerj24/screen-protector": "file:../../packages/screen-protector",
     "@wuilmerj24/signalr": "file:../../packages/signalr",
@@ -18,6 +21,7 @@
   },
   "devDependencies": {
     "@nativescript/android": "~8.9.0",
-    "@nativescript/ios": "~8.9.0"
+    "@nativescript/ios": "~8.9.0",
+    "@nativescript/preview-cli": "1.0.14"
   }
 }
