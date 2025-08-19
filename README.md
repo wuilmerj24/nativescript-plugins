@@ -2,7 +2,6 @@
 
 *Powerful NativeScript plugins for professional mobile development*
 <!-- - [@wuilmerj24/carousel](packages/carousel/README.md) -->
-- [@wuilmerj24/carouselm](packages/carouselm/README.md)
 - [@wuilmerj24/country-code](packages/country-code/README.md)
 - [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
 - [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
