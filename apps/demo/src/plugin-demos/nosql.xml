@@ -12,6 +12,8 @@
             <Button text="Crear Tabla" tap="{{ crearTabla }}" class="btn btn-primary"/>
             <Button text="insertar Tabla" tap="{{ insertar }}" class="btn btn-primary"/>
             <Button text="getUser Tabla" tap="{{ getUser }}" class="btn btn-primary"/>
+            <Button text="getLength" tap="{{ getLength }}" class="btn btn-primary"/>
+            <Button text="getItem" tap="{{ getItem }}" class="btn btn-primary"/>
             <Button text="Update data" tap="{{ actualizar }}" class="btn btn-primary"/>
             <Button text="Update all data" tap="{{ actualizarTodo }}" class="btn btn-primary"/>
             <Button text="Replace all data" tap="{{ replace }}" class="btn btn-primary"/>

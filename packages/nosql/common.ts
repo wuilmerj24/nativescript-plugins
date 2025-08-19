@@ -342,7 +342,7 @@ class Table {
     this.checkDeleted();
     const arr = Array.isArray(docs) ? docs : [docs];
     for (let doc of arr) {
-      if (!(this.primaryKey in doc)) doc[this.primaryKey] = new NosqlUUID().generateUUID(7);
+      if (!(this.primaryKey in doc)) doc[this.primaryKey] = new NosqlUUID().generateUUID(__IOS__ ? 8 : 7);
       const id = String(doc[this.primaryKey]);
       if (this.data.has(id)) throw new Error(`Duplicado: ya existe un documento con ${this.primaryKey}=${id}`);
       // aplicar + WAL
@@ -366,7 +366,7 @@ class Table {
   replace(filterFn: (doc: Document) => boolean, newDoc: Document) {
     this.checkDeleted();
     let ensured = { ...newDoc };
-    if (!(this.primaryKey in ensured)) ensured[this.primaryKey] = new NosqlUUID().generateUUID(7);
+    if (!(this.primaryKey in ensured)) ensured[this.primaryKey] = new NosqlUUID().generateUUID(__IOS__ ? 8 : 7);
 
     for (const [id, doc] of this.data.entries()) {
       if (filterFn(doc)) {

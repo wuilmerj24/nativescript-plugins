@@ -117,12 +117,6 @@ export class DemoSharedNosql extends DemoSharedBase {
           const db = this.nosql.db(this.dbName);
           db.tableCreate(this.tableName, { primary_key_name: 'id' });
           console.log('Tablas en', this.dbName, ':', db.tableList());
-          this.nosql.db(this.dbName).table(this.tableName).indexCreate('byEdad', 'edad');
-          let indexs = this.nosql.db(this.dbName).table(this.tableName).indexList();
-          console.log('indexs ', indexs);
-          this.nosql.db(this.dbName).table(this.tableName).indexDrop('byEdad');
-          indexs = this.nosql.db(this.dbName).table(this.tableName).indexList();
-          console.log('indexs ', indexs);
         }
       });
     } catch (error) {
@@ -143,8 +137,8 @@ export class DemoSharedNosql extends DemoSharedBase {
         });
       }
 
-      table.insert(data); // Inserción masiva
-      console.log('Inserción completada.');
+      const restInsert = await table.insert(data); // Inserción masiva
+      console.log('Inserción completada. ', restInsert);
     } catch (error) {
       console.log(error);
     }
@@ -156,9 +150,27 @@ export class DemoSharedNosql extends DemoSharedBase {
         const usuarios = this.nosql.db(this.dbName).table(this.tableName).all();
         console.log('Total :', this.tableName, usuarios.length);
         usuarios.forEach((u, i) => console.log(`${i} | data:`, u));
-        const usuario = this.nosql.db(this.dbName).table(this.tableName).findByIndex('byEdad', 36);
-        console.log('usuario filter ', usuario);
       }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  getLength() {
+    try {
+      const usuarios = this.nosql.db(this.dbName).table(this.tableName).all();
+      console.log('Total :', this.tableName, usuarios.length);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  getItem() {
+    try {
+      this.nosql.db(this.dbName).table(this.tableName).indexCreate('byEdad', 'edad');
+      let indexs = this.nosql.db(this.dbName).table(this.tableName).indexList();
+      const usuario = this.nosql.db(this.dbName).table(this.tableName).findByIndex('byEdad', 36);
+      console.log('usuario filter ', usuario);
     } catch (error) {
       console.log(error);
     }
