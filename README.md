@@ -2,10 +2,10 @@
 
 *Powerful NativeScript plugins for professional mobile development*
 <!-- - [@wuilmerj24/carousel](packages/carousel/README.md) -->
+- [@wuilmerj24/carouselm](packages/carouselm/README.md)
 - [@wuilmerj24/country-code](packages/country-code/README.md)
 - [@wuilmerj24/gallery-view](packages/gallery-view/README.md)
 - [@wuilmerj24/launch-navigator](packages/launch-navigator/README.md)
-- [@wuilmerj24/nosql](packages/nosql/README.md)
 - [@wuilmerj24/screen-orientation](packages/screen-orientation/README.md)
 - [@wuilmerj24/screen-protector](packages/screen-protector/README.md)
 - [@wuilmerj24/signalr](packages/signalr/README.md)
