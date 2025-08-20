@@ -5,248 +5,77 @@
 [![iOS Support](https://img.shields.io/badge/iOS-000000?style=for-the-badge&logo=apple&logoColor=white&labelColor=111111)](https://developer.apple.com/ios/)
 
 # @wuilmerj24/nosql
+This module implements a **NoSQL database system based on JSON files** using the **NativeScript** file system. It allows you to create databases, tables, indexes, and perform CRUD (Create, Read, Update, Delete) operations without relying on external libraries.
 
-A lightweight NoSQL database engine for NativeScript applications, built with TypeScript. Provides simple document storage with file-based persistence.
-
-## Features
-- Create and drop databases
-- Create and drop tables
-- Insert, update, replace, delete, and query documents
-- Create, list, drop, rename, and check indices
-- Primary key support
-- Basic corruption handling
-- Lightweight and fully written in TypeScript
-- Works with NativeScript File and Folder APIs
 
 ## Installation
 
 ```bash
 npm install @wuilmerj24/nosql
 ```
+---
 
-## API Documentation
+## 🚀 Características
 
-### Database Methods
-| Method | Description | 
-|--------|-------------|
-| `db(name)` | Access existing database |
-| `dbCreate(name)` | Create new database |
-| `dbDrop(name)` | Delete database |
-| `dbList()` | List all databases |
+- 📁 Databases as folders in `documents/`.
+- 📄 Tables as `.nosql` files in JSON format.
+- ✅ Validation through **signatures (hashes)** to detect corruption.
+- 🔎 Support for **simple indexes** on specific fields.
+- ✍️ CRUD operations: insert, update, delete, and query data.
+- 🔄 Listing and management of **databases** and **tables**.
+- 🔑 Unique IDs generated with UUID.
+- ⚡ Query options: `limit`, `offset`, `orderBy`, `order`.
+- ⚡ Query options: `limit`, `offset`, `orderBy`, `order`.
 
+📚 API
 
-### Table Methods
-| Method | Description |
-|--------|-------------|
-| `table(name)` | Access existing table  |
-| `tableCreate(name, options)`| Create new table  |
-| `tableDrop(name)` | Delete table |
-| `tableList()` | List all tables |
+| Method                         | Description                                                     | Exampl                                       |
+| ------------------------------ | --------------------------------------------------------------- | --------------------------------------------- |
+| `dbList()`                     | Lists all valid databases.                         | `db.dbList()`                           |
+| `createDb(dbName,version?)` | Creates a new database, and an optional version can be provided. | `db.createDb("myDb",version?)` |
+| `setDbVersion(version)` | Set version. | `db.setDbVersion("1.2.3")` |
+| `getDbVersion()` | Get version. | `db.getDbVersion()` |
+| `useDb(dbName)` | Select an existing database. | `db.useDb("myDb")` |
+| `dropDb(dbName)` | Deletes an entire database. | `db.dropDb("myDb")` |
+| `createTable(tableName)` | Crea una nueva tabla. | `db.createTable("users")` |
+| `table(tableName)` | Select a table to operate on. | `db.table("users")` |
+| `tableDrop(tableName)` | Deletes a specific table. | `db.tableDrop("users")` |
+| `tableList()` | Lists all tables in the database. | `db.tableList()` |
+| `tableIndex(indexName, field)` | Creates an index on a field. | `db.tableIndex("ageIndex", "age")` |
+| `insert(data)` | Inserts a document into the current table. | `db.insert({name: "Alice", age: 25})` |
+| `update(id, updates)` | Updates a document by ID. | `db.update(id, {age: 26})` |
+| `update(updates)` | Updates all documents with the new fields. | `db.update({active: true})` |
+| `delete(id)` | Deletes a document by ID. | `db.delete(id)` |
+| `delete()` | Deletes all documents in the table. | `db.delete()` |
+| `filter(criteria, options)` | Filters documents by criteria and options (pagination, ordering). | `db.filter({age:25}, {orderBy:"name"})` |
+| `get(id)` | Retrieves a document by its ID. | `db.get(id)` |
+| `getAll(ids)` | Retrieves multiple documents by their IDs. | `db.getAll([id1, id2])` |
+| `getAllData()` | Retrieves all documents in the table. | `db.getAllData()` |
+---
 
-### Document Operations
-| Method | Description |
-|--------|-------------|
-|`insert(docs)` | Add documents|
-|`update(filter, updateFn)` | Modify documents|
-|`replace(filter, newDoc)` | Replace documents|
-|`delete(filter)` | Remove documents |
-|`get(id)` | Get by primary key |
-|`filter(fn)` | Query with function |
-|`all()` | Get all documents |
-
-
-## Example
+### interface 
 ```typescript
-
-export class DemoSharedNosql{
-    private nosql:Nosql;
-    private dbName:string=""
-    private tableName:string=""
-      this.nosql = new Nosql();
-    console.log(`Controlador inicializado con DB: '${this.dbName}'`);
-  }
-
-  useDB(){
-    try {
-      Dialogs.prompt({
-        title:"Use db",
-        message:"",
-        okButtonText:"Ok",
-        neutralButtonText:"Cancel",
-      }).then((result)=>{
-        if (result.result){
-          this.dbName=result.text;
-        }
-      })
-    } catch (error) {
-      
-    }
-  }
-
-  crearBD() {
-    try {
-      Dialogs.prompt({
-        title: 'DBNAME',
-        message: '',
-        okButtonText: 'OK',
-        neutralButtonText: 'Cancel',
-      }).then((result) => {
-        console.log(result);
-        if(result.result){
-          this.dbName = result.text;
-
-          // Crea la DB solo si no existe
-          if (!this.nosql.dbList().includes(this.dbName)) {
-            this.nosql.dbCreate(this.dbName);
-            console.log(`Base de datos '${this.dbName}' creada.`);
-          } else {
-            console.log(`Base de datos '${this.dbName}' ya existe.`);
-          }
-        }
-      })
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  crearTabla() {
-    try {
-      Dialogs.prompt({
-        title: 'DBNAME',
-        message: '',
-        okButtonText: 'OK',
-        neutralButtonText: 'Cancel',
-      }).then((result)=>{
-        if(result.result){
-          this.tableName = result.text;
-          const db = this.nosql.db(this.dbName);
-          db.tableCreate(this.tableName, { primary_key_name: "id" });
-          console.log("Tablas en", this.dbName, ":", db.tableList());
-          this.nosql.db(this.dbName).table(this.tableName).indexCreate('byEdad', 'edad');
-          let indexs = this.nosql.db(this.dbName).table(this.tableName).indexList();
-          console.log("indexs ", indexs);
-          this.nosql.db(this.dbName).table(this.tableName).indexDrop('byEdad');
-          indexs = this.nosql.db(this.dbName).table(this.tableName).indexList();
-          console.log("indexs ", indexs);
-        }
-      })
-      
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  async insertar() {
-    try {
-      const db = this.nosql.db(this.dbName);
-      const table = db.table(this.tableName);
-
-      const data: any[] = [];
-      for (let i = 0; i < 100; i++) {
-        data.push({
-          name: `name${i}`,
-          edad: i,
-        });
-      }
-
-      table.insert(data); // Inserción masiva
-      console.log("Inserción completada.");
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-
-  getUser() {
-    try {
-      if(this.tableName.length>0){
-        const usuarios = this.nosql.db(this.dbName).table(this.tableName).all();
-        console.log("Total :", this.tableName, usuarios.length);
-        usuarios.forEach((u, i) => console.log(`${i} | data:`, u));
-        const usuario=this.nosql.db(this.dbName).table(this.tableName).findByIndex("byEdad",36);        
-        console.log("usuario filter ",usuario);
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  dropDb() {
-    try {
-      this.nosql.dbDrop(this.dbName);
-      console.log(`Base de datos '${this.dbName}' eliminada.`);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  dropTabla() {
-    try {
-      const tabla: string = this.tableName
-      this.nosql.db(this.dbName).tableDrop(tabla);
-      console.log(`Tabla ${tabla} eliminada.`);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  actualizar(){
-    try {
-      this.nosql.db(this.dbName).table(this.tableName).update(d=>d.edad === 36,{name:"Wj24  actualizado"});
-      const usuario = this.nosql.db(this.dbName).table(this.tableName).findByIndex("byEdad", 36);
-      console.log("usuario filter update", usuario);
-    } catch (error) {
-      console.log(error)
-    }
-  }
-  
-  actualizarTodo(){
-    try {
-      this.nosql.db(this.dbName).table(this.tableName).update(
-        () => true, // condición: todos
-        doc => ({ ...doc, edad: doc.edad + 1 })
-      );
-
-    } catch (error) {
-      console.log(error)
-    }
-  }
-  
-  eliminarItem(){
-    try {
-      this.nosql.db(this.dbName).table(this.tableName).delete(d=>d.edad === 40);
-      const usuario = this.nosql.db(this.dbName).table(this.tableName).findByIndex("byEdad", 40);
-      console.log("usuario filter update", usuario);
-    } catch (error) {
-      console.log(error)
-    }
-  }
-  
-  eliminarTodo(){
-    try {
-      this.nosql.db(this.dbName).table(this.tableName).delete(()=>true);
-      const usuario = this.nosql.db(this.dbName).table(this.tableName).findByIndex("byEdad", 40);
-      console.log("usuario filter update", usuario);
-    } catch (error) {
-      console.log(error)
-    }
-  }
-  
-  replace(){
-    try {
-     
-      this.nosql.db(this.dbName).table(this.tableName).replace(
-        () => true,
-        { name: "Desconocido", edad: 0 }
-      );
-
-    } catch (error) {
-      console.log(error)
-    }
-  }
+export interface DatabaseConfig {
+	name: string;
+	version: string;
+	createdAt: string;
+	signature: string;
+	lastMigration?: string,
 }
-
 ```
+
+### ⚠️ Limitations
+- Does not support complex queries (joins, aggregations).
+- Indexes are simple (equality-based).
+- Not optimized for large volumes of data.
+---
+
+### 🛠️ Future improvements
+- Support for range queries in indexes.
+- File compression and encryption.
+- Synchronization with a remote backend.
+- Transactions and concurrency control.
+---
 
 License
 

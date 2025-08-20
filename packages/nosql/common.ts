@@ -1,698 +1,840 @@
-import { Folder, File, knownFolders, path as nsPath } from '@nativescript/core';
+// database.nosql.ts
+import { knownFolders, File, Folder, path } from '@nativescript/core';
 
-type Document = { [key: string]: any };
-
-type IndexDef = {
-  field: string;
-  // valor -> set de PKs
-  map: Map<any, Set<string>>;
-};
-
-type WalEntry = { op: 'insert'; doc: Document } | { op: 'update'; id: string; set: Partial<Document> } | { op: 'replace'; id: string; doc: Document } | { op: 'delete'; id: string };
-
-const DEFAULT_PK = 'id';
-const DEFAULT_COMPACT_THRESHOLD = 200; // compacción tras N ops
-const DEFAULT_DEBOUNCE_MS = 150; // guardado diferido
-
-/** --- Utilidad para renombrar carpetas de forma segura --- */
-function renameFolderSafely(folder: Folder, newName: string) {
-  const parent = folder.parent;
-  if (!parent) {
-    console.error('No se pudo obtener la carpeta padre');
-    return;
-  }
-
-  const newFolderPath = nsPath.join(parent.path, newName);
-  const newFolder = Folder.fromPath(newFolderPath);
-
-  folder.getEntitiesSync().forEach((entity) => {
-    const oldPath = nsPath.join(folder.path, entity.name);
-    const newPath = nsPath.join(newFolder.path, entity.name);
-    if (entity instanceof File) {
-      File.fromPath(oldPath).rename(newPath);
-    } else if (entity instanceof Folder) {
-      renameFolderSafely(Folder.fromPath(oldPath), entity.name);
-    }
-  });
-
-  try {
-    folder.removeSync();
-  } catch (err) {
-    console.warn('No se pudo eliminar carpeta original:', err);
-  }
-
-  console.log(`Carpeta renombrada a: ${newFolderPath}`);
+export interface DatabaseConfig {
+  name: string;
+  version: string; // Cambiar a número para mejor manejo
+  createdAt: string;
+  signature: string;
+  lastMigration?: string; // Nueva propiedad para tracking
 }
 
-/** --- Clase UUID --- */
-class NosqlUUID {
-  public generateUUID(version: number): string {
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    if (version === 7) {
-      const ms = BigInt(Date.now());
-      bytes[0] = Number((ms >> 40n) & 0xffn);
-      bytes[1] = Number((ms >> 32n) & 0xffn);
-      bytes[2] = Number((ms >> 24n) & 0xffn);
-      bytes[3] = Number((ms >> 16n) & 0xffn);
-      bytes[4] = Number((ms >> 8n) & 0xffn);
-      bytes[5] = Number(ms & 0xffn);
-      bytes[6] = (bytes[6] & 0x0f) | 0x70;
-      bytes[8] = (bytes[8] & 0x3f) | 0x80;
-      return this.formatUUID(bytes);
-    }
-    if (version === 8) {
-      bytes[6] = (bytes[6] & 0x0f) | 0x80;
-      bytes[8] = (bytes[8] & 0x3f) | 0x80;
-      return this.formatUUID(bytes);
-    }
-    throw new Error('Versión no soportada. Usa 7 u 8.');
-  }
-  private bytesToHex(bytes: Uint8Array): string {
-    return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  }
-  private formatUUID(bytes: Uint8Array): string {
-    const hex = this.bytesToHex(bytes);
-    return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}`;
-  }
+export interface Migration {
+  version: string;
+  description: string;
+  up: (db: NosqlCommon) => Promise<boolean>;
+  down?: (db: NosqlCommon) => Promise<boolean>;
 }
 
-/** --- Clase Table (optimizada) --- */
-class Table {
-  private file: File; // snapshot .nosql
-  private walFile: File; // journal .wal (JSONL)
-  private data: Map<string, Document> = new Map(); // en memoria por PK
-  private indices: Map<string, IndexDef> = new Map();
-  private primaryKey: string;
-  private deleted = false;
+export interface TableHeader {
+  name: string;
+  createdAt: string;
+  lastModified: string;
+  indexes: string[];
+  signature: string;
+}
 
-  // Persistencia diferida
-  private saveTimer: any = null;
-  private debouncedMs = DEFAULT_DEBOUNCE_MS;
+export interface QueryOptions {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  order?: 'asc' | 'desc';
+}
 
-  // Control de compacción
-  private opSinceCompact = 0;
-  private compactThreshold = DEFAULT_COMPACT_THRESHOLD;
+export class NosqlCommon {
+  private dbPath: string;
+  private dbConfig: DatabaseConfig;
+  private currentTable: string | null = null;
+  private migrations: Migration[] = []; // Registrar migraciones
 
-  constructor(private dbFolder: Folder, private tableName: string, primaryKey: string = DEFAULT_PK) {
-    this.primaryKey = primaryKey;
-    this.file = dbFolder.getFile(`${tableName}.nosql`);
-    this.walFile = dbFolder.getFile(`${tableName}.wal`);
+  constructor() {}
 
-    // Cargar snapshot si existe
-    if (File.exists(this.file.path)) {
-      try {
-        const parsed = JSON.parse(this.file.readTextSync() || '{}');
-        const arr: Document[] = parsed.data || [];
-        const pk = parsed.primaryKey || primaryKey;
-        this.primaryKey = pk;
-        // reconstruir mapa
-        for (const doc of arr) {
-          const id = String(doc[this.primaryKey]);
-          this.data.set(id, doc);
+  // Método para generar firma (hash simple)
+  private generateSignature(data: string): string {
+    let hash = 0;
+    for (let i = 0; i < data.length; i++) {
+      const char = data.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
+    }
+    return hash.toString(16);
+  }
+
+  // Método para verificar firma de tabla
+  private verifyTableSignature(header: TableHeader): boolean {
+    const dataToVerify = `${header.name}${header.createdAt}${header.lastModified}`;
+    const expectedSignature = this.generateSignature(dataToVerify);
+    return header.signature === expectedSignature;
+  }
+
+  // Método para generar firma de tabla
+  private generateTableSignature(header: TableHeader): string {
+    const dataToSign = `${header.name}${header.createdAt}${header.lastModified}`;
+    return this.generateSignature(dataToSign);
+  }
+
+  // Verificar si es una base de datos válida
+  private async isValidDatabase(folder: Folder): Promise<boolean> {
+    try {
+      const metaFile = folder.getFile('meta.config');
+      if (await File.exists(metaFile.path)) {
+        const content = await metaFile.readText();
+        const config: DatabaseConfig = JSON.parse(content);
+
+        // Verificar firma
+        const dataToVerify = `${config.name}${config.version}${config.createdAt}`;
+        const expectedSignature = this.generateSignature(dataToVerify);
+
+        return config.signature === expectedSignature;
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  //LIST BASE DE DATOS
+  async dbList(): Promise<string[]> {
+    try {
+      const documents = knownFolders.documents();
+      const entities = await documents.getEntities();
+
+      const databases: string[] = [];
+
+      for (const entity of entities) {
+        if (entity instanceof Folder) {
+          const folder = entity as Folder;
+
+          // Verificar si es una base de datos válida
+          if (await this.isValidDatabase(folder)) {
+            databases.push(folder.name);
+          }
         }
-        // reconstruir definiciones de índices (vacías, se recalculan)
-        if (parsed.indices && typeof parsed.indices === 'object') {
-          Object.entries(parsed.indices as Record<string, string>).forEach(([name, field]) => {
-            this.indices.set(name, { field, map: new Map() });
+      }
+
+      return databases;
+    } catch (error) {
+      console.error('Error listing databases:', error);
+      return [];
+    }
+  }
+
+  // Registrar migraciones
+  registerMigrations(migrations: Migration[]): void {
+    this.migrations = migrations.sort((a, b) => this.compareVersions(a.version, b.version));
+  }
+
+  // Comparar versiones semánticas
+  private compareVersions(v1: string, v2: string): number {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+
+    for (let i = 0; i < 3; i++) {
+      if (parts1[i] > parts2[i]) return 1;
+      if (parts1[i] < parts2[i]) return -1;
+    }
+    return 0;
+  }
+
+  // Método para crear BD con versión específica
+  async createDb(dbName: string, version: string = '1.0.0'): Promise<boolean> {
+    try {
+      const documents = knownFolders.documents();
+      const dbPath = path.join(documents.path, dbName);
+
+      if (await File.exists(dbPath)) {
+        throw new Error(`Database '${dbName}' already exists`);
+      }
+
+      const dbFolder = Folder.fromPath(dbPath);
+      const now = new Date().toISOString();
+
+      const config: DatabaseConfig = {
+        name: dbName,
+        version: version,
+        createdAt: now,
+        signature: this.generateSignature(`${dbName}${version}${now}`),
+      };
+
+      const metaFile = File.fromPath(path.join(dbPath, 'meta.config'));
+      await metaFile.writeText(JSON.stringify(config, null, 2));
+
+      this.dbPath = dbPath;
+      this.dbConfig = config;
+
+      return true;
+    } catch (error) {
+      console.error('Error creating database:', error);
+      return false;
+    }
+  }
+
+  // Método para actualizar versión de BD
+  async setDbVersion(version: string): Promise<boolean> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const metaPath = path.join(this.dbPath, 'meta.config');
+      const metaFile = File.fromPath(metaPath);
+
+      if (!(await File.exists(metaPath))) {
+        throw new Error('Database configuration not found');
+      }
+
+      const content = await metaFile.readText();
+      const config: DatabaseConfig = JSON.parse(content);
+
+      // Actualizar versión
+      config.version = version;
+      config.signature = this.generateSignature(`${config.name}${version}${config.createdAt}`);
+
+      await metaFile.writeText(JSON.stringify(config, null, 2));
+      this.dbConfig = config;
+
+      return true;
+    } catch (error) {
+      console.error('Error setting database version:', error);
+      return false;
+    }
+  }
+
+  // Obtener versión actual de la BD
+  async getDbVersion(): Promise<string> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const metaPath = path.join(this.dbPath, 'meta.config');
+      if (!(await File.exists(metaPath))) {
+        throw new Error('Database configuration not found');
+      }
+
+      const metaFile = File.fromPath(metaPath);
+      const content = await metaFile.readText();
+      const config: DatabaseConfig = JSON.parse(content);
+
+      return config.version;
+    } catch (error) {
+      console.error('Error getting database version:', error);
+      return '0.0.0';
+    }
+  }
+
+  // Ejecutar migraciones
+  async migrate(targetVersion?: string): Promise<boolean> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const currentVersion = await this.getDbVersion();
+      let target = targetVersion || this.migrations[this.migrations.length - 1]?.version;
+
+      if (!target) {
+        console.log('No migrations registered or target version specified');
+        return true;
+      }
+
+      const migrationsToApply = this.migrations.filter((migration) => this.compareVersions(migration.version, currentVersion) > 0 && this.compareVersions(migration.version, target) <= 0);
+
+      for (const migration of migrationsToApply) {
+        console.log(`Applying migration: ${migration.version} - ${migration.description}`);
+
+        const success = await migration.up(this);
+        if (!success) {
+          throw new Error(`Migration ${migration.version} failed`);
+        }
+
+        // Actualizar versión de la BD
+        await this.setDbVersion(migration.version);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error during migration:', error);
+      return false;
+    }
+  }
+
+  // Revertir migración
+  async rollback(version: string): Promise<boolean> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const migration = this.migrations.find((m) => m.version === version);
+      if (!migration || !migration.down) {
+        throw new Error(`Migration ${version} not found or cannot be reverted`);
+      }
+
+      const success = await migration.down(this);
+      if (!success) {
+        throw new Error(`Rollback of migration ${version} failed`);
+      }
+
+      // Encontrar versión anterior
+      const currentIndex = this.migrations.findIndex((m) => m.version === version);
+      const previousVersion = currentIndex > 0 ? this.migrations[currentIndex - 1].version : '0.0.0';
+
+      await this.setDbVersion(previousVersion);
+
+      return true;
+    } catch (error) {
+      console.error('Error during rollback:', error);
+      return false;
+    }
+  }
+
+  // USAR BASE DE DATOS
+  async useDb(dbName: string): Promise<boolean> {
+    try {
+      const documents = knownFolders.documents();
+      const dbPath = path.join(documents.path, dbName);
+
+      if (!(await File.exists(dbPath))) {
+        throw new Error(`Database '${dbName}' does not exist`);
+      }
+
+      const dbFolder = Folder.fromPath(dbPath);
+      if (!(await this.isValidDatabase(dbFolder))) {
+        throw new Error(`'${dbName}' is not a valid database`);
+      }
+
+      this.dbPath = dbPath;
+
+      // Leer configuración
+      const metaFile = File.fromPath(path.join(dbPath, 'meta.config'));
+      const content = await metaFile.readText();
+      this.dbConfig = JSON.parse(content);
+
+      return true;
+    } catch (error) {
+      console.error('Error using database:', error);
+      return false;
+    }
+  }
+
+  // ELIMINAR BASE DE DATOS
+  async dropDb(dbName: string): Promise<boolean> {
+    try {
+      const documents = knownFolders.documents();
+      const dbPath = path.join(documents.path, dbName);
+
+      if (await File.exists(dbPath)) {
+        const dbFolder = Folder.fromPath(dbPath);
+
+        // Eliminar todos los archivos
+        try {
+          const entities = await dbFolder.getEntities();
+          for (const entity of entities) {
+            await entity.remove();
+          }
+          await dbFolder.remove();
+        } catch (error) {
+          console.log('Error removing folder, might already be empty:', error);
+        }
+
+        this.dbPath = null;
+        this.dbConfig = null;
+        this.currentTable = null;
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error dropping database:', error);
+      return false;
+    }
+  }
+
+  // CREAR TABLA
+  async createTable(tableName: string): Promise<boolean> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${tableName}.nosql`);
+
+      if (await File.exists(tablePath)) {
+        throw new Error(`Table '${tableName}' already exists`);
+      }
+
+      const now = new Date().toISOString();
+      const header: TableHeader = {
+        name: tableName,
+        createdAt: now,
+        lastModified: now,
+        indexes: [],
+        signature: '',
+      };
+
+      // Generar firma
+      header.signature = this.generateTableSignature(header);
+
+      const tableData = {
+        header,
+        data: [],
+        indexes: {},
+      };
+
+      const tableFile = File.fromPath(tablePath);
+      await tableFile.writeText(JSON.stringify(tableData, null, 2));
+      return true;
+    } catch (error) {
+      console.error('Error creating table:', error);
+      return false;
+    }
+  }
+
+  // USAR TABLA
+  async table(tableName: string): Promise<NosqlCommon> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${tableName}.nosql`);
+
+      if (!(await File.exists(tablePath))) {
+        throw new Error(`Table '${tableName}' does not exist`);
+      }
+
+      this.currentTable = tableName;
+      return this;
+    } catch (error) {
+      console.error('Error selecting table:', error);
+      throw error;
+    }
+  }
+
+  // ELIMINAR TABLA
+  async tableDrop(tableName: string): Promise<boolean> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${tableName}.nosql`);
+
+      if (await File.exists(tablePath)) {
+        const tableFile = File.fromPath(tablePath);
+        await tableFile.remove();
+
+        if (this.currentTable === tableName) {
+          this.currentTable = null;
+        }
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error dropping table:', error);
+      return false;
+    }
+  }
+
+  // LISTAR TABLAS
+  async tableList(): Promise<string[]> {
+    if (!this.dbPath) {
+      throw new Error('No database selected');
+    }
+
+    try {
+      const dbFolder = Folder.fromPath(this.dbPath);
+      const entities = await dbFolder.getEntities();
+
+      const tables: string[] = [];
+      for (const entity of entities) {
+        if (entity.name.endsWith('.nosql')) {
+          tables.push(entity.name.replace('.nosql', ''));
+        }
+      }
+      return tables;
+    } catch (error) {
+      console.error('Error listing tables:', error);
+      return [];
+    }
+  }
+
+  // CREAR ÍNDICE
+  async tableIndex(indexName: string, field: string): Promise<boolean> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
+
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
+
+      // Verificar firma
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
+        // No lanzar error, solo log warning
+      }
+
+      // Agregar índice al header
+      if (!tableData.header.indexes.includes(indexName)) {
+        tableData.header.indexes.push(indexName);
+      }
+
+      // Crear índice
+      tableData.indexes[indexName] = {};
+      for (const item of tableData.data) {
+        if (item[field] !== undefined) {
+          if (!tableData.indexes[indexName][item[field]]) {
+            tableData.indexes[indexName][item[field]] = [];
+          }
+          tableData.indexes[indexName][item[field]].push(item.id);
+        }
+      }
+
+      // Actualizar timestamp y firma
+      tableData.header.lastModified = new Date().toISOString();
+      tableData.header.signature = this.generateTableSignature(tableData.header);
+
+      await tableFile.writeText(JSON.stringify(tableData, null, 2));
+      return true;
+    } catch (error) {
+      console.error('Error creating index:', error);
+      return false;
+    }
+  }
+
+  // INSERTAR DATOS
+  async insert(data: any): Promise<string> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
+
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
+
+      // Verificar firma (pero no fallar si hay mismatch)
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
+      }
+
+      // Generar ID único
+      const id = this.generateUUID();
+      const document = {
+        id,
+        ...data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Insertar datos
+      tableData.data.push(document);
+
+      // Actualizar índices
+      for (const indexName of tableData.header.indexes) {
+        for (const field in document) {
+          if (document.hasOwnProperty(field)) {
+            if (!tableData.indexes[indexName]) {
+              tableData.indexes[indexName] = {};
+            }
+            if (!tableData.indexes[indexName][document[field]]) {
+              tableData.indexes[indexName][document[field]] = [];
+            }
+            tableData.indexes[indexName][document[field]].push(id);
+          }
+        }
+      }
+
+      // Actualizar timestamp y firma
+      tableData.header.lastModified = new Date().toISOString();
+      tableData.header.signature = this.generateTableSignature(tableData.header);
+
+      await tableFile.writeText(JSON.stringify(tableData, null, 2));
+      return id;
+    } catch (error) {
+      console.error('Error inserting data:', error);
+      throw error;
+    }
+  }
+
+  // ACTUALIZAR DATOS
+  async update(id: string, updates: any): Promise<boolean>;
+  async update(updates: any): Promise<boolean>;
+  async update(arg1: any, arg2?: any): Promise<boolean> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
+
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
+
+      // Verificar firma (pero no fallar)
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
+      }
+
+      let updated = false;
+
+      if (typeof arg1 === 'string') {
+        // Update por ID
+        const updateId = arg1;
+        const updateData = arg2;
+
+        const index = tableData.data.findIndex((item) => item.id === updateId);
+        if (index !== -1) {
+          tableData.data[index] = {
+            ...tableData.data[index],
+            ...updateData,
+            updatedAt: new Date().toISOString(),
+          };
+          updated = true;
+        }
+      } else {
+        // Update masivo
+        const updateData = arg1;
+        tableData.data = tableData.data.map((item) => ({
+          ...item,
+          ...updateData,
+          updatedAt: new Date().toISOString(),
+        }));
+        updated = true;
+      }
+
+      if (updated) {
+        // Reconstruir índices
+        tableData.indexes = {};
+        for (const indexName of tableData.header.indexes) {
+          tableData.indexes[indexName] = {};
+          for (const item of tableData.data) {
+            for (const field in item) {
+              if (item.hasOwnProperty(field)) {
+                if (!tableData.indexes[indexName][item[field]]) {
+                  tableData.indexes[indexName][item[field]] = [];
+                }
+                tableData.indexes[indexName][item[field]].push(item.id);
+              }
+            }
+          }
+        }
+
+        // Actualizar timestamp y firma
+        tableData.header.lastModified = new Date().toISOString();
+        tableData.header.signature = this.generateTableSignature(tableData.header);
+
+        await tableFile.writeText(JSON.stringify(tableData, null, 2));
+      }
+
+      return updated;
+    } catch (error) {
+      console.error('Error updating data:', error);
+      return false;
+    }
+  }
+
+  // ELIMINAR DATOS
+  async delete(id?: string): Promise<boolean> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
+
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
+
+      // Verificar firma (pero no fallar)
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
+      }
+
+      let deleted = false;
+
+      if (id) {
+        // Eliminar por ID
+        const index = tableData.data.findIndex((item) => item.id === id);
+        if (index !== -1) {
+          tableData.data.splice(index, 1);
+          deleted = true;
+        }
+      } else {
+        // Eliminar todos
+        tableData.data = [];
+        deleted = true;
+      }
+
+      if (deleted) {
+        // Reconstruir índices
+        tableData.indexes = {};
+        for (const indexName of tableData.header.indexes) {
+          tableData.indexes[indexName] = {};
+          for (const item of tableData.data) {
+            for (const field in item) {
+              if (item.hasOwnProperty(field)) {
+                if (!tableData.indexes[indexName][item[field]]) {
+                  tableData.indexes[indexName][item[field]] = [];
+                }
+                tableData.indexes[indexName][item[field]].push(item.id);
+              }
+            }
+          }
+        }
+
+        // Actualizar timestamp y firma
+        tableData.header.lastModified = new Date().toISOString();
+        tableData.header.signature = this.generateTableSignature(tableData.header);
+
+        await tableFile.writeText(JSON.stringify(tableData, null, 2));
+      }
+
+      return deleted;
+    } catch (error) {
+      console.error('Error deleting data:', error);
+      return false;
+    }
+  }
+
+  // FILTRAR DATOS
+  async filter(criteria: any, options?: QueryOptions): Promise<any[]> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
+
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
+
+      // Verificar firma (pero no fallar)
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
+      }
+
+      let results = tableData.data.filter((item) => {
+        for (const key in criteria) {
+          if (criteria.hasOwnProperty(key)) {
+            if (item[key] !== criteria[key]) {
+              return false;
+            }
+          }
+        }
+        return true;
+      });
+
+      // Aplicar opciones
+      if (options) {
+        if (options.orderBy) {
+          results.sort((a, b) => {
+            const aVal = a[options.orderBy];
+            const bVal = b[options.orderBy];
+            if (options.order === 'desc') {
+              return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+            }
+            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
           });
         }
-      } catch (err) {
-        console.warn(`Tabla corrupta: ${tableName}. Se renombrará snapshot y continuará con WAL.`);
-        this.renameCorruptFile();
-      }
-    }
 
-    // Reproducir WAL si existe
-    if (File.exists(this.walFile.path)) {
-      try {
-        const content = this.walFile.readTextSync() || '';
-        if (content.trim().length) {
-          const lines = content.split('\n').filter(Boolean);
-          for (const line of lines) {
-            const entry = JSON.parse(line) as WalEntry;
-            this.applyWalEntry(entry, false); // no volver a escribir al WAL mientras se aplica
-          }
+        if (options.offset) {
+          results = results.slice(options.offset);
         }
-      } catch (err) {
-        console.warn(`WAL corrupto para ${tableName}. Lo renombro y sigo.`);
-        this.renameCorruptWal();
-      }
-    }
 
-    // Recalcular índices con los datos actuales
-    this.rebuildAllIndexes();
-    // Después de cargar y re-jugar WAL, conviene compaction inicial ligera si creció mucho
-    // (opcional, comentado para no bloquear arranque)
-    // this.compactNow();
-  }
-
-  private checkDeleted() {
-    if (this.deleted) throw new Error(`La tabla '${this.tableName}' ha sido eliminada.`);
-  }
-
-  /** ---------- Persistencia y WAL ---------- */
-
-  private schedulePersist() {
-    if (this.saveTimer) clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => {
-      this.saveTimer = null;
-      // política: si aún no supero compaction threshold, solo sync WAL
-      if (this.opSinceCompact >= this.compactThreshold) {
-        this.compactNow();
-      } else {
-        this.flushWalBuffer();
-      }
-    }, this.debouncedMs);
-  }
-
-  private walBuffer: WalEntry[] = [];
-
-  private appendToWal(entry: WalEntry) {
-    this.walBuffer.push(entry);
-    this.opSinceCompact++;
-    this.schedulePersist();
-  }
-
-  private flushWalBuffer() {
-    if (!this.walBuffer.length) return;
-    try {
-      const existing = File.exists(this.walFile.path) ? this.walFile.readTextSync() || '' : '';
-      const add = this.walBuffer.map((e) => JSON.stringify(e)).join('\n') + '\n';
-      this.walBuffer = [];
-      this.walFile.writeTextSync(existing + add);
-    } catch (err) {
-      console.error('Error escribiendo WAL:', err);
-      // En caso de error, mantenemos walBuffer en memoria para reintentar en próxima operación.
-    }
-  }
-
-  /** Escribe snapshot .nosql y trunca WAL */
-  private compactNow() {
-    this.checkDeleted();
-    // 1) flush pendiente de WAL por seguridad
-    this.flushWalBuffer();
-
-    // 2) construir snapshot
-    const snapshot = {
-      primaryKey: this.primaryKey,
-      data: Array.from(this.data.values()),
-      indices: Object.fromEntries(Array.from(this.indices.entries()).map(([name, def]) => [name, def.field])),
-    };
-
-    try {
-      this.file.writeTextSync(JSON.stringify(snapshot));
-      // 3) truncar WAL
-      this.walFile.writeTextSync('');
-      this.opSinceCompact = 0;
-    } catch (err) {
-      console.error('Error en compaction:', err);
-    }
-  }
-
-  private renameCorruptFile() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
-    const newPath = nsPath.join(this.dbFolder.path, `${this.tableName}_corrupt_${timestamp}.nosql`);
-    try {
-      File.fromPath(this.file.path).renameSync(newPath);
-      console.log(`Snapshot corrupto renombrado a: ${newPath}`);
-    } catch (err) {
-      console.error('No se pudo renombrar snapshot corrupto:', err);
-    }
-  }
-
-  private renameCorruptWal() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
-    const newPath = nsPath.join(this.dbFolder.path, `${this.tableName}_corrupt_${timestamp}.wal`);
-    try {
-      File.fromPath(this.walFile.path).renameSync(newPath);
-      console.log(`WAL corrupto renombrado a: ${newPath}`);
-    } catch (err) {
-      console.error('No se pudo renombrar WAL corrupto:', err);
-    }
-  }
-
-  markDeleted() {
-    this.deleted = true;
-  }
-
-  /** ---------- Índices ---------- */
-
-  private indexTouchOnInsert(doc: Document) {
-    const id = String(doc[this.primaryKey]);
-    for (const [, def] of this.indices) {
-      const val = doc[def.field];
-      const bucket = def.map.get(val) || new Set<string>();
-      bucket.add(id);
-      def.map.set(val, bucket);
-    }
-  }
-
-  private indexTouchOnDelete(doc: Document) {
-    const id = String(doc[this.primaryKey]);
-    for (const [, def] of this.indices) {
-      const val = doc[def.field];
-      const bucket = def.map.get(val);
-      if (bucket) {
-        bucket.delete(id);
-        if (bucket.size === 0) def.map.delete(val);
-      }
-    }
-  }
-
-  private indexTouchOnUpdate(prev: Document, next: Document) {
-    const id = String(next[this.primaryKey]);
-    for (const [, def] of this.indices) {
-      const oldVal = prev[def.field];
-      const newVal = next[def.field];
-      if (oldVal === newVal) continue;
-
-      // quitar de old
-      const bOld = def.map.get(oldVal);
-      if (bOld) {
-        bOld.delete(id);
-        if (bOld.size === 0) def.map.delete(oldVal);
-      }
-      // agregar a new
-      const bNew = def.map.get(newVal) || new Set<string>();
-      bNew.add(id);
-      def.map.set(newVal, bNew);
-    }
-  }
-
-  private rebuildAllIndexes() {
-    for (const [, def] of this.indices) {
-      def.map.clear();
-    }
-    for (const doc of this.data.values()) {
-      this.indexTouchOnInsert(doc);
-    }
-  }
-
-  /** ---------- WAL Replay Helpers ---------- */
-  private applyWalEntry(entry: WalEntry, alsoAppend = false) {
-    switch (entry.op) {
-      case 'insert': {
-        const doc = entry.doc;
-        const id = String(doc[this.primaryKey]);
-        if (this.data.has(id)) {
-          // si llega un insert duplicado por replay, lo ignoramos
-          return;
+        if (options.limit) {
+          results = results.slice(0, options.limit);
         }
-        this.data.set(id, doc);
-        this.indexTouchOnInsert(doc);
-        if (alsoAppend) this.appendToWal(entry);
-        break;
       }
-      case 'update': {
-        const id = String(entry.id);
-        const prev = this.data.get(id);
-        if (!prev) return;
-        const next = { ...prev, ...entry.set };
-        this.data.set(id, next);
-        this.indexTouchOnUpdate(prev, next);
-        if (alsoAppend) this.appendToWal(entry);
-        break;
-      }
-      case 'replace': {
-        const id = String(entry.id);
-        const prev = this.data.get(id);
-        if (prev) this.indexTouchOnDelete(prev);
-        const next = { ...entry.doc, [this.primaryKey]: id };
-        this.data.set(id, next);
-        this.indexTouchOnInsert(next);
-        if (alsoAppend) this.appendToWal(entry);
-        break;
-      }
-      case 'delete': {
-        const id = String(entry.id);
-        const prev = this.data.get(id);
-        if (!prev) return;
-        this.indexTouchOnDelete(prev);
-        this.data.delete(id);
-        if (alsoAppend) this.appendToWal(entry);
-        break;
-      }
+
+      return results;
+    } catch (error) {
+      console.error('Error filtering data:', error);
+      return [];
     }
   }
 
-  /** ---------- CRUD ---------- */
-
-  insert(docs: Document | Document[]) {
-    this.checkDeleted();
-    const arr = Array.isArray(docs) ? docs : [docs];
-    for (let doc of arr) {
-      if (!(this.primaryKey in doc)) doc[this.primaryKey] = new NosqlUUID().generateUUID(__IOS__ ? 8 : 7);
-      const id = String(doc[this.primaryKey]);
-      if (this.data.has(id)) throw new Error(`Duplicado: ya existe un documento con ${this.primaryKey}=${id}`);
-      // aplicar + WAL
-      this.applyWalEntry({ op: 'insert', doc }, true);
+  // OBTENER POR ID
+  async get(id: string): Promise<any> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
     }
-    return this;
-  }
-
-  update(filterFn: (doc: Document) => boolean, set: Partial<Document>) {
-    this.checkDeleted();
-    for (const [id, doc] of this.data.entries()) {
-      if (filterFn(doc)) {
-        const next = { ...doc, ...set };
-        this.applyWalEntry({ op: 'update', id, set }, true);
-        // Nota: applyWalEntry ya actualizó índices y memoria.
-      }
-    }
-    return this;
-  }
-
-  replace(filterFn: (doc: Document) => boolean, newDoc: Document) {
-    this.checkDeleted();
-    let ensured = { ...newDoc };
-    if (!(this.primaryKey in ensured)) ensured[this.primaryKey] = new NosqlUUID().generateUUID(__IOS__ ? 8 : 7);
-
-    for (const [id, doc] of this.data.entries()) {
-      if (filterFn(doc)) {
-        const fixed = { ...ensured, [this.primaryKey]: id };
-        this.applyWalEntry({ op: 'replace', id, doc: fixed }, true);
-      }
-    }
-    return this;
-  }
-
-  delete(filterFn: (doc: Document) => boolean) {
-    this.checkDeleted();
-    for (const [id, doc] of this.data.entries()) {
-      if (filterFn(doc)) {
-        this.applyWalEntry({ op: 'delete', id }, true);
-      }
-    }
-    return this;
-  }
-
-  get(id: any) {
-    this.checkDeleted();
-    return this.data.get(String(id));
-  }
-
-  getAll(ids: any[]) {
-    this.checkDeleted();
-    const set = new Set(ids.map((x) => String(x)));
-    return Array.from(this.data.entries())
-      .filter(([id]) => set.has(id))
-      .map(([, d]) => d);
-  }
-
-  filter(filterFn: (doc: Document) => boolean) {
-    this.checkDeleted();
-    return Array.from(this.data.values()).filter(filterFn);
-  }
-
-  all() {
-    this.checkDeleted();
-    return Array.from(this.data.values());
-  }
-
-  /** ---------- Búsqueda por índice ---------- */
-
-  indexCreate(indexName: string, field: string) {
-    this.checkDeleted();
-    if (this.indices.has(indexName)) throw new Error(`Índice '${indexName}' ya existe`);
-    const def: IndexDef = { field, map: new Map() };
-    this.indices.set(indexName, def);
-    // poblar
-    for (const doc of this.data.values()) {
-      const v = doc[field];
-      const bucket = def.map.get(v) || new Set<string>();
-      bucket.add(String(doc[this.primaryKey]));
-      def.map.set(v, bucket);
-    }
-    // snapshot metadata de índices se guarda en compaction
-    this.schedulePersist();
-    return this;
-  }
-
-  indexDrop(indexName: string) {
-    this.checkDeleted();
-    this.indices.delete(indexName);
-    this.schedulePersist();
-    return this;
-  }
-
-  indexList() {
-    this.checkDeleted();
-    return Array.from(this.indices.keys());
-  }
-  indexStatus() {
-    this.checkDeleted();
-    return Object.fromEntries(Array.from(this.indices.entries()).map(([k, v]) => [k, v.field]));
-  }
-  indexWait(_indexName: string) {
-    this.checkDeleted();
-    return true;
-  } // inmediato
-
-  /** Buscar por índice: valor exacto */
-  findByIndex(indexName: string, value: any) {
-    this.checkDeleted();
-    const def = this.indices.get(indexName);
-    if (!def) throw new Error(`Índice '${indexName}' no existe`);
-    const bucket = def.map.get(value);
-    if (!bucket || bucket.size === 0) return [];
-    return Array.from(bucket.values())
-      .map((id) => this.data.get(id)!)
-      .filter(Boolean);
-  }
-
-  /** Compacción manual opcional */
-  compact() {
-    this.checkDeleted();
-    this.compactNow();
-  }
-
-  /** Configuración runtime opcional */
-  setDebounce(ms: number) {
-    this.debouncedMs = Math.max(0, ms);
-  }
-  setCompactThreshold(n: number) {
-    this.compactThreshold = Math.max(1, n);
-  }
-}
-
-/** --- Clase Database --- */
-class Database {
-  private tables: Map<string, Table> = new Map();
-  private dbFolder: Folder;
-  private metaFile: File;
-  private deleted = false;
-  private droppedTables: Set<string> = new Set();
-
-  constructor(private dbName: string, createMode: boolean = false) {
-    const documents = knownFolders.documents();
-    const dbFolderPath = nsPath.join(documents.path, dbName);
-
-    const dbExists = () => {
-      if (!Folder.exists(dbFolderPath)) return false;
-      const metaFile = nsPath.join(dbFolderPath, '.dbmeta.json');
-      if (!File.exists(metaFile)) return false;
-      try {
-        const content = File.fromPath(metaFile).readTextSync();
-        const meta = JSON.parse(content || '{}');
-        return meta.type === 'nosql-db' && meta.name === dbName;
-      } catch {
-        return false;
-      }
-    };
-
-    if (dbExists()) {
-      this.dbFolder = Folder.fromPath(dbFolderPath);
-      this.metaFile = this.dbFolder.getFile('.dbmeta.json');
-    } else if (createMode) {
-      if (Folder.exists(dbFolderPath)) this.renameCorruptDatabase();
-      this.dbFolder = Folder.fromPath(dbFolderPath);
-      this.metaFile = this.dbFolder.getFile('.dbmeta.json');
-      this.initializeMetaFile();
-    } else {
-      throw new Error(`La base de datos '${dbName}' no existe o es inválida. Usa dbCreate().`);
-    }
-  }
-
-  private checkDeleted() {
-    if (this.deleted) throw new Error(`La base de datos '${this.dbName}' ha sido eliminada.`);
-  }
-
-  private initializeMetaFile() {
-    this.checkDeleted();
-    this.metaFile.writeTextSync(
-      JSON.stringify({
-        type: 'nosql-db',
-        name: this.dbName,
-        createdAt: new Date().toISOString(),
-      })
-    );
-  }
-
-  private renameCorruptDatabase() {
-    try {
-      if (!this.dbFolder) return;
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
-      const newName = `${this.dbName}_corrupt_${timestamp}`;
-      const parentFolder = knownFolders.documents();
-      const corruptPath = nsPath.join(parentFolder.path, newName);
-      if (Folder.exists(corruptPath)) throw new Error('Ya existe una carpeta con el nombre de corrupto');
-      renameFolderSafely(this.dbFolder, newName);
-      console.log(`Base de datos corrupta renombrada a: ${corruptPath}`);
-      this.dbFolder = Folder.fromPath(nsPath.join(parentFolder.path, this.dbName));
-    } catch (err) {
-      console.error(`No se pudo renombrar DB corrupta: ${err}`);
-      throw err;
-    }
-  }
-
-  table(tableName: string) {
-    this.checkDeleted();
-
-    if (this.droppedTables.has(tableName)) {
-      throw new Error(`La tabla '${tableName}' fue eliminada y no puede usarse nuevamente en esta instancia.`);
-    }
-
-    if (!this.tables.has(tableName)) {
-      const dataFile = this.dbFolder.getFile(`${tableName}.nosql`);
-      const walFile = this.dbFolder.getFile(`${tableName}.wal`);
-      if (!File.exists(dataFile.path) && !File.exists(walFile.path)) {
-        throw new Error(`La tabla '${tableName}' no existe. Usa tableCreate().`);
-      }
-      this.tables.set(tableName, new Table(this.dbFolder, tableName));
-    }
-
-    const table = this.tables.get(tableName)!;
-    if ((table as any)['deleted']) throw new Error(`La tabla '${tableName}' ha sido eliminada.`);
-    return table;
-  }
-
-  tableCreate(tableName: string, options?: { primary_key_name?: string }) {
-    this.checkDeleted();
-
-    if (this.droppedTables.has(tableName)) {
-      throw new Error(`No se puede volver a crear la tabla '${tableName}' porque fue eliminada (session-locked).`);
-    }
-
-    const pk = options?.primary_key_name || DEFAULT_PK;
-    if (!this.tables.has(tableName)) {
-      // crear instancia; aún no crea archivo hasta primera escritura/compaction
-      this.tables.set(tableName, new Table(this.dbFolder, tableName, pk));
-      // Hacer una compaction inicial para materializar snapshot vacío con metadata
-      this.tables.get(tableName)!.compact();
-    }
-    return this.tables.get(tableName)!;
-  }
-
-  tableDrop(tableName: string) {
-    this.checkDeleted();
-
-    const t = this.tables.get(tableName);
-    // Aunque no esté en el map, intentamos borrar archivos si existen
-    const dataPath = nsPath.join(this.dbFolder.path, `${tableName}.nosql`);
-    const walPath = nsPath.join(this.dbFolder.path, `${tableName}.wal`);
 
     try {
-      if (File.exists(dataPath)) File.fromPath(dataPath).removeSync();
-      if (File.exists(walPath)) File.fromPath(walPath).removeSync();
-      if (t) {
-        (t as any).data = new Map();
-        t.markDeleted();
-        this.tables.delete(tableName);
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
+
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
+
+      // Verificar firma (pero no fallar)
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
       }
-      this.droppedTables.add(tableName);
-      console.log(`Tabla '${tableName}' eliminada correctamente.`);
-    } catch (err) {
-      console.error(`Error al eliminar tabla '${tableName}':`, err);
+
+      return tableData.data.find((item) => item.id === id) || null;
+    } catch (error) {
+      console.error('Error getting data:', error);
+      return null;
     }
-    return this;
   }
 
-  tableList() {
-    this.checkDeleted();
-    // listar por archivos .nosql presentes
-    return this.dbFolder
-      .getEntitiesSync()
-      .filter((f) => f.name.endsWith('.nosql'))
-      .map((f) => f.name.replace('.nosql', ''));
-  }
-
-  markDeleted() {
-    this.deleted = true;
-    this.tables.forEach((t) => t.markDeleted());
-    this.tables.clear();
-  }
-}
-
-/** --- Clase NosqlCommon --- */
-export abstract class NosqlCommon {
-  private dbs: Map<string, Database> = new Map();
-
-  db(dbName: string): Database {
-    if (!this.dbs.has(dbName)) this.dbs.set(dbName, new Database(dbName, false));
-    return this.dbs.get(dbName)!;
-  }
-
-  dbCreate(dbName: string): Database {
-    if (this.dbExists(dbName)) {
-      console.warn(`La base de datos '${dbName}' ya existe, se abrirá.`);
-      return this.db(dbName);
+  // OBTENER MÚLTIPLES POR ID
+  async getAll(ids: string[]): Promise<any[]> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
     }
-    const db = new Database(dbName, true);
-    this.dbs.set(dbName, db);
-    return db;
-  }
 
-  private dbExists(dbName: string): boolean {
-    const documents = knownFolders.documents();
-    const dbFolderPath = nsPath.join(documents.path, dbName);
-    return Folder.exists(dbFolderPath) && File.exists(nsPath.join(dbFolderPath, '.dbmeta.json'));
-  }
+    try {
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
 
-  dbDrop(dbName: string) {
-    const db = this.dbs.get(dbName);
-    const documents = knownFolders.documents();
-    const dbFolderPath = nsPath.join(documents.path, dbName);
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
 
-    if (Folder.exists(dbFolderPath)) {
-      try {
-        const folder = Folder.fromPath(dbFolderPath);
-        folder.getEntitiesSync().forEach((entity) => {
-          if (entity instanceof File) {
-            File.fromPath(entity.path).removeSync();
-          } else if (entity instanceof Folder) {
-            Folder.fromPath(entity.path).removeSync();
-          }
-        });
-        folder.removeSync();
-        console.log(`Base de datos '${dbName}' eliminada completamente.`);
-      } catch (err) {
-        console.error(`Error eliminando DB '${dbName}':`, err);
+      // Verificar firma (pero no fallar)
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
       }
-    } else {
-      console.warn(`DB '${dbName}' no existe.`);
-    }
 
-    if (db) db.markDeleted();
-    this.dbs.delete(dbName);
-    return this;
+      return tableData.data.filter((item) => ids.includes(item.id));
+    } catch (error) {
+      console.error('Error getting multiple data:', error);
+      return [];
+    }
   }
 
-  dbList() {
-    const documents = knownFolders.documents();
-    return documents
-      .getEntitiesSync()
-      .filter((f) => f instanceof Folder)
-      .filter((f) => {
-        const metaFile = f.getFile('.dbmeta.json');
-        if (!File.exists(metaFile.path)) return false;
-        try {
-          const meta = JSON.parse(metaFile.readTextSync() || '{}');
-          return meta.type === 'nosql-db';
-        } catch {
-          return false;
-        }
-      })
-      .map((f) => f.name);
+  // OBTENER TODOS LOS DATOS
+  async getAllData(): Promise<any[]> {
+    if (!this.dbPath || !this.currentTable) {
+      throw new Error('No table selected');
+    }
+
+    try {
+      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
+      const tableFile = File.fromPath(tablePath);
+
+      const content = await tableFile.readText();
+      const tableData = JSON.parse(content);
+
+      // Verificar firma (pero no fallar)
+      if (!this.verifyTableSignature(tableData.header)) {
+        console.warn('Table signature mismatch, but continuing operation');
+      }
+
+      return tableData.data;
+    } catch (error) {
+      console.error('Error getting all data:', error);
+      return [];
+    }
+  }
+
+  // Generar UUID simple
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
 }
