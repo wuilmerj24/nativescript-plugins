@@ -1,7 +1,7 @@
 {
   "name": "@wuilmerj24/nosql",
   "version": "0.1.0-beta.1",
-  "description": "A lightweight NoSQL engine for NativeScript, implemented in TypeScript. Supports in-memory and file-based storage with basic CRUD, indexing, and table/database management.",
+  "description": "This module implements a NoSQL database system based on JSON files using the NativeScript file system. It allows you to create databases, tables, indexes, and perform CRUD (Create, Read, Update, Delete) operations without relying on external libraries.",
   "main": "index",
   "types": "index.d.ts",
   "nativescript": {
