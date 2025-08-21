@@ -21,6 +21,10 @@ export class GalleryView extends GalleryViewCommon {
   private ref = new WeakRef(this);
   private adaptador: ListaAdaptadorForAndroid;
   private oldSpinnerIndex: number = -1;
+  private iconSeleccionado: android.widget.ImageView;
+  private iconUriSeleccionad: string;
+  private textAlbunSeleccionado: android.widget.TextView;
+  private appState: boolean = false;
   @GetSetProperty()
   public language: ELanguage;
   @GetSetProperty()
@@ -88,6 +92,7 @@ export class GalleryView extends GalleryViewCommon {
 
   async onLoaded() {
     super.onLoaded();
+    CLog('onLoaded ');
     const permissionsGranted = await this.checkPerms();
     if (this.btnSolicitar != null) {
       this.nativeView.removeView(this.btnSolicitar);
@@ -95,14 +100,18 @@ export class GalleryView extends GalleryViewCommon {
     if (permissionsGranted) {
       CLog('Ambos permisos concedidos');
       Utils.setTimeout(() => {
-        this.renderUI();
+        if (!this.appState) {
+          this.renderUI();
+        }
       }, 100);
     } else {
       CLog('Uno o ambos permisos denegados');
       await this.solicitarPermisos()
         .then((res) => {
           Utils.setTimeout(() => {
-            this.renderUI();
+            if (!this.appState) {
+              this.renderUI();
+            }
           }, 100);
         })
         .catch((err) => {
@@ -124,19 +133,23 @@ export class GalleryView extends GalleryViewCommon {
   }
 
   private onResume(): void {
-    // CLog("La aplicación ha vuelto al primer plano (onResume)");
-    this.mediaLoader.resumeRequests(this._context);
-    // Lógica para onResume
+    CLog('La aplicación ha vuelto al primer plano (onResume)');
+    if (this.mediaLoader != null || this.mediaLoader != undefined) {
+      this.mediaLoader.resumeRequests(this._context);
+    }
   }
 
   private onPause(): void {
-    // CLog("La aplicación ha entrado en segundo plano (onPause)");
+    CLog('La aplicación ha entrado en segundo plano (onPause)');
     // Lógica para onPause
-    this.mediaLoader.pauseRequests(this._context);
+    if (this.mediaLoader != null || this.mediaLoader != undefined) {
+      this.mediaLoader.pauseRequests(this._context);
+    }
   }
 
   renderUI() {
     const self = this;
+    this.appState = true;
     this.mediaStore = new MediaStoreAndroid();
     let imagenes: Array<IFiles> = new Array();
     let videos: Array<IFiles> = new Array();
@@ -145,25 +158,17 @@ export class GalleryView extends GalleryViewCommon {
     videos = this.mediaStore.getVideos(this._context);
     imagenes = this.mediaStore.getImagenes(this._context);
     this.files = [...imagenes, ...videos];
-    if(this.files.length<=0){
+    if (this.files.length <= 0) {
       const layout = new android.widget.FrameLayout(this._context);
-      layout.setLayoutParams(new android.view.ViewGroup.LayoutParams(
-        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-      ));
+      layout.setLayoutParams(new android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
       layout.setBackgroundColor(new Color('#000000').android); // Fondo negro
 
       const textView = new android.widget.TextView(this._context);
-      textView.setText("Texto Centrado");
       textView.setTextColor(new Color('#FFFFFF').android); // Texto blanco
       textView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
       textView.setGravity(android.view.Gravity.CENTER);
 
-      const params = new android.widget.FrameLayout.LayoutParams(
-        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-        android.view.Gravity.CENTER
-      );
+      const params = new android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, android.view.Gravity.CENTER);
 
       layout.addView(textView, params);
       this.nativeView.addView(layout);
@@ -172,7 +177,9 @@ export class GalleryView extends GalleryViewCommon {
     this.files[0].isSelected = true;
     Application.on(Application.resumeEvent, this.onResume, this);
     Application.on(Application.suspendEvent, this.onPause, this);
+    const headerContainer: android.widget.LinearLayout = this.createHeaderContainer();
     // Crear body
+    this.mediaLoader = GlideMediaLoader.getInstance();
     this.rv = this.createLista();
     this.rv.setNestedScrollingEnabled(true);
     this.rv.addOnItemTouchListener(
@@ -233,16 +240,19 @@ export class GalleryView extends GalleryViewCommon {
           const data = self.files.filter((item) => item.isSelected)[0].data.filter((item) => item.isSelected);
           self.ref?.get()?.sendEvent(GalleryView.scrollEvent, data, null, dx, dy);
         },
-        onScrollStateChanged(recyclerView, state) {
+        onScrollStateChanged: (recyclerView, state) => {
           // CLog("onScrollStateChanged")
+          if (state == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) {
+            com.bumptech.glide.Glide.with(this._context).resumeRequests();
+          } else {
+            com.bumptech.glide.Glide.with(this._context).pauseRequests();
+          }
         },
       })
     );
     // Crear footer
     this.btnPreview = this.createBtnPreview();
     this.btnEdit = this.createBtnEdit();
-
-    const headerContainer: android.widget.LinearLayout = this.createHeaderContainer();
 
     (this.nativeView as androidx.constraintlayout.widget.ConstraintLayout).addView(headerContainer);
     (this.nativeView as androidx.constraintlayout.widget.ConstraintLayout).addView(this.rv);
@@ -283,32 +293,198 @@ export class GalleryView extends GalleryViewCommon {
     headerContainer.setId(android.view.View.generateViewId()); // Asignar un ID único
 
     // Crear el Spinner y el TextView (contador)
-    this.spinner = this.createSpinner();
+    // this.spinner = this.createSpinner();
     this.contador = this.createContador();
 
     // Agregar el Spinner y el TextView al contenedor del header
-    headerContainer.addView(this.spinner);
+    // headerContainer.addView(this.spinner);
+    headerContainer.addView(this.createContenedorAlbun());
     headerContainer.addView(this.contador);
     headerContainer.setBackgroundColor(new Color(this.bgColorHeader).android);
     return headerContainer;
   }
 
+  private createContenedorAlbun(): android.widget.LinearLayout {
+    const context: android.content.Context = this._context;
+    const linearLayout = new android.widget.LinearLayout(context);
+    linearLayout.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+    linearLayout.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    linearLayout.setOnClickListener(
+      new android.view.View.OnClickListener({
+        onClick: (param0) => {
+          const location = Array.create('int', 2);
+
+          param0.getLocationOnScreen(location);
+          const x: number = location[0];
+          const y: number = location[1];
+          console.log(`x:${x} y:${y}`);
+          this.createDropDown(x, y, param0.getHeight());
+        },
+      })
+    );
+
+    // Padding opcional
+    const paddingPx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 8, context.getResources().getDisplayMetrics()));
+    linearLayout.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+
+    // 2️⃣ ImageView
+    this.iconSeleccionado = new android.widget.ImageView(context);
+    const imgSize = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 40, context.getResources().getDisplayMetrics()));
+    const imgParams = new android.widget.LinearLayout.LayoutParams(imgSize, imgSize);
+    imgParams.setMargins(0, 0, paddingPx, 0); // margen a la derecha
+    this.iconSeleccionado.setLayoutParams(imgParams);
+    this.iconSeleccionado.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+    this.iconUriSeleccionad = this.files[0].icon;
+    const myCollection = new java.util.ArrayList();
+    myCollection.add(new com.bumptech.glide.load.resource.bitmap.CenterCrop());
+    const radiusPx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 10, context.getResources().getDisplayMetrics()));
+    myCollection.add(new com.bumptech.glide.load.resource.bitmap.RoundedCorners(radiusPx));
+    // Cargar imagen desde URI usando Glide
+    com.bumptech.glide.Glide.with(context)
+      .load(this.iconUriSeleccionad)
+      .override(imgSize, imgSize)
+      .transform(new com.bumptech.glide.load.MultiTransformation(myCollection))
+      // .centerCrop()
+      .into(this.iconSeleccionado);
+
+    // 3️⃣ TextView
+    this.textAlbunSeleccionado = new android.widget.TextView(context);
+    this.textAlbunSeleccionado.setText(this.files[0].albunName);
+    this.textAlbunSeleccionado.setTextColor(new Color(this.textcolorHeader).android);
+    this.textAlbunSeleccionado.setTextSize(20);
+
+    // 4️⃣ Agregar imagen + texto al LinearLayout
+    linearLayout.addView(this.iconSeleccionado);
+    linearLayout.addView(this.textAlbunSeleccionado);
+    return linearLayout;
+  }
+
+  private createDropDown(x: number, y: number, height: number): android.widget.PopupWindow {
+    const context: android.content.Context = this._context;
+    const popup = new android.widget.PopupWindow(context);
+    popup.setWidth(android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+
+    // 2️⃣ Altura máxima 50% de la pantalla
+    const maxHeight = Math.floor(Screen.mainScreen.heightPixels * 0.5);
+    popup.setHeight(maxHeight);
+    popup.setFocusable(true);
+
+    // 3️⃣ Crear ScrollView vertical
+    const scrollView = new android.widget.ScrollView(context);
+    scrollView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+
+    // 4️⃣ Crear container LinearLayout vertical
+    const container = new android.widget.LinearLayout(context);
+    container.setOrientation(android.widget.LinearLayout.VERTICAL);
+    container.setBackgroundColor(android.graphics.Color.parseColor(this.bgColorHeader));
+
+    const padding = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 8, context.getResources().getDisplayMetrics()));
+    container.setPadding(padding, padding, padding, padding);
+    const drawable = new android.graphics.drawable.GradientDrawable();
+    drawable.setColor(new Color(this.bgColorHeader).android);
+
+    const radiusPx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 16, context.getResources().getDisplayMetrics()));
+
+    // top-left, top-right, bottom-right, bottom-left
+    drawable.setCornerRadii([0, 0, 0, 0, radiusPx, radiusPx, radiusPx, radiusPx]);
+
+    container.setBackground(drawable);
+    scrollView.setBackground(drawable);
+    // 5️⃣ Crear items
+    this.files.forEach((album, index: number) => {
+      const itemLayout = new android.widget.LinearLayout(context);
+      itemLayout.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+      itemLayout.setGravity(android.view.Gravity.CENTER_VERTICAL);
+      itemLayout.setPadding(padding, padding / 2, padding, padding / 2);
+
+      // ImageView
+      const img = new android.widget.ImageView(context);
+      const sizePx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 40, context.getResources().getDisplayMetrics()));
+      const imgParams = new android.widget.LinearLayout.LayoutParams(sizePx, sizePx);
+      imgParams.setMargins(0, 0, padding, 0);
+      img.setLayoutParams(imgParams);
+      img.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+      const radiusPx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 10, context.getResources().getDisplayMetrics()));
+      const myCollection = new java.util.ArrayList();
+      myCollection.add(new com.bumptech.glide.load.resource.bitmap.CenterCrop());
+      myCollection.add(new com.bumptech.glide.load.resource.bitmap.RoundedCorners(radiusPx));
+      com.bumptech.glide.Glide.with(context)
+        .load(album.icon)
+        .transform(new com.bumptech.glide.load.MultiTransformation(myCollection))
+        .override(sizePx, sizePx)
+        // .centerCrop()
+        .into(img);
+
+      // TextView
+      const txt = new android.widget.TextView(context);
+      txt.setText(album.albunName);
+      txt.setTextSize(16);
+      txt.setTextColor(new Color(this.textcolorHeader).android);
+
+      itemLayout.addView(img);
+      itemLayout.addView(txt);
+
+      // Click en el item
+      itemLayout.setOnClickListener(
+        new android.view.View.OnClickListener({
+          onClick: (view) => {
+            for (let i: number = 0; i < this.files.length; i++) {
+              this.files[i].isSelected = false;
+            }
+
+            this.files[index].isSelected = true;
+            this.mediaLoader.clearAll(this._context, this.rv);
+            this.adaptador.updateData(this.files[index].data);
+            this.iconUriSeleccionad = album.icon;
+            this.textAlbunSeleccionado.setText(album.albunName);
+            com.bumptech.glide.Glide.with(context)
+              .load(this.iconUriSeleccionad)
+              .transform(new com.bumptech.glide.load.MultiTransformation(myCollection))
+              .override(sizePx, sizePx)
+              // .centerCrop()
+              .into(this.iconSeleccionado);
+            Utils.setTimeout(() => {
+              popup.dismiss();
+            }, 10);
+          },
+        })
+      );
+
+      container.addView(itemLayout);
+    });
+
+    // 6️⃣ Agregar container al ScrollView
+    scrollView.addView(container);
+
+    // 7️⃣ Asignar ScrollView al PopupWindow
+    popup.setContentView(scrollView);
+    popup.showAtLocation(this.nativeView, android.view.Gravity.NO_GRAVITY, x, y + height);
+    container.setClipToOutline(true);
+
+    return popup;
+  }
 
   private createSpinner(): android.widget.Spinner {
-    const spinner: android.widget.Spinner = new android.widget.Spinner(this._context);
+    const spinner: any = new android.widget.Spinner(this._context, null, android.R.attr.spinnerStyle, android.widget.Spinner.MODE_DIALOG);
     const spinnerParams: android.widget.LinearLayout.LayoutParams = new android.widget.LinearLayout.LayoutParams(
-      0, // Ancho inicial (se ajustará con weight)
+      // 0,
+      android.view.ViewGroup.LayoutParams.MATCH_PARENT,
       android.view.ViewGroup.LayoutParams.WRAP_CONTENT
     );
     spinnerParams.weight = 0.8; // 80% del ancho del contenedor
+    spinnerParams.setMargins(8, 8, 8, 8);
     spinner.setLayoutParams(spinnerParams);
     spinner.setId(android.view.View.generateViewId());
     spinner.setSelection(0);
+
+    // Opcional: separa un poco el dropdown del Spinner
+    spinner.setDropDownVerticalOffset(10);
     spinner.setDropDownWidth(Screen.mainScreen.widthPixels);
 
     const adaptador = new SpinnerDataAdapter(this.files, this._context, this.bgColorHeader, this.textcolorHeader);
     spinner.setAdapter(adaptador);
     const self = this;
+    spinner.setDropDownHorizontalOffset(10);
     spinner.setOnItemSelectedListener(
       new android.widget.AdapterView.OnItemSelectedListener({
         onItemSelected: (param0: android.widget.AdapterView<any>, param1: android.view.View, position: number, param3: number) => {
@@ -340,8 +516,7 @@ export class GalleryView extends GalleryViewCommon {
 
     const textParams: android.widget.LinearLayout.LayoutParams = new android.widget.LinearLayout.LayoutParams(
       0, // Ancho inicial (se ajustará con weight)
-      // android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-      this.dpToPx(2)
+      android.view.ViewGroup.LayoutParams.MATCH_PARENT
     );
     textParams.weight = 0.2; // 20% del ancho del contenedor
     contador.setLayoutParams(textParams);
@@ -355,11 +530,7 @@ export class GalleryView extends GalleryViewCommon {
   }
 
   private dpToPx(dp: number): number {
-    return Math.round(android.util.TypedValue.applyDimension(
-      android.util.TypedValue.COMPLEX_UNIT_DIP,
-      dp,
-      this._context.getResources().getDisplayMetrics()
-    ));
+    return Math.round(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, dp, this._context.getResources().getDisplayMetrics()));
   }
 
   private createLista(): androidx.recyclerview.widget.RecyclerView {
@@ -367,7 +538,7 @@ export class GalleryView extends GalleryViewCommon {
     rv.setId(android.view.View.generateViewId());
     const recyclerParams: androidx.constraintlayout.widget.ConstraintLayout.LayoutParams = new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0);
     rv.setLayoutParams(recyclerParams);
-    rv.setBackgroundColor(android.graphics.Color.BLACK);
+    rv.setBackgroundColor(android.graphics.Color.TRANSPARENT);
     rv.setHasFixedSize(true);
     rv.setId(android.view.View.generateViewId());
     rv.setAddStatesFromChildren(true);
@@ -375,9 +546,12 @@ export class GalleryView extends GalleryViewCommon {
     const layout: androidx.recyclerview.widget.GridLayoutManager = new androidx.recyclerview.widget.GridLayoutManager(this._context, 5);
     layout.setOrientation(androidx.recyclerview.widget.LinearLayoutManager.VERTICAL);
     rv.setLayoutManager(layout);
+    rv.setEdgeEffectFactory(new androidx.recyclerview.widget.RecyclerView.EdgeEffectFactory());
+
     this.adaptador = new ListaAdaptadorForAndroid(this.files.filter((item) => item.isSelected)[0].data, this.colorRadio);
     rv.setAdapter(this.adaptador);
     rv.addItemDecoration(new SpaceItemDecoration(10));
+    rv.setClipToPadding(false);
     return rv;
   }
 
@@ -534,6 +708,26 @@ export class GalleryView extends GalleryViewCommon {
         android.view.ViewGroup.LayoutParams.MATCH_PARENT // Alto completo
       );
     }
+  }
+
+  disposeNativeView(): void {
+    this.contador = null;
+    this.rv = null;
+    this.btnPreview = null;
+    this.btnEdit = null;
+    this.mediaStore = null;
+    this.files = null;
+    this.ref = null;
+    this.adaptador = null;
+    this.oldSpinnerIndex = null;
+    this.iconSeleccionado = null;
+    this.iconUriSeleccionad = null;
+    this.textAlbunSeleccionado = null;
+    (this.nativeView as androidx.constraintlayout.widget.ConstraintLayout).removeAllViews();
+    this.nativeView = null;
+    this.appState = false;
+    CLog('disposeNativeview');
+    super.disposeNativeView();
   }
 }
 

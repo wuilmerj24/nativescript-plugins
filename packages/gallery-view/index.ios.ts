@@ -62,14 +62,14 @@ export class GalleryView extends GalleryViewCommon {
     this.iosIgnoreSafeArea = true;
   }
 
-	createNativeView(): UIView {
-		this.idioma = new LanguageController(this.language);
-		this.nativeView = UIView.new();
-		(this.nativeView as UIView).translatesAutoresizingMaskIntoConstraints = false;
-		const isDark = (this.nativeView as UIView).traitCollection.userInterfaceStyle;
-		(this.nativeView as UIView).backgroundColor = isDark==2 ? UIColor.blackColor : UIColor.whiteColor;		
-		return this.nativeView;
-	}
+  createNativeView(): UIView {
+    this.idioma = new LanguageController(this.language);
+    this.nativeView = UIView.new();
+    (this.nativeView as UIView).translatesAutoresizingMaskIntoConstraints = false;
+    const isDark = (this.nativeView as UIView).traitCollection.userInterfaceStyle;
+    (this.nativeView as UIView).backgroundColor = isDark == 2 ? UIColor.blackColor : UIColor.whiteColor;
+    return this.nativeView;
+  }
 
   async onLoaded() {
     super.onLoaded();
@@ -103,6 +103,7 @@ export class GalleryView extends GalleryViewCommon {
       return false; // Retorna false en caso de error
     }
   }
+
   async solicitarPermisos(): Promise<boolean> {
     try {
       const videoPermission = await requestPermission('photo', { type: 'always' });
@@ -117,60 +118,52 @@ export class GalleryView extends GalleryViewCommon {
     }
   }
 
-	private async renderUI() {
-		try {
-			this.ref?.get()?.sendEvent(GalleryView.loadedEvent, GalleryView);
-			this.mediaStore = new MediaStoreiOS();
-			const imagenes = await this.mediaStore.getMedia();
-			const screenWidth = (this.nativeView as UIView).bounds.size.width;
-			const screenHeight = (this.nativeView as UIView).bounds.size.height;
-			this.files = new ObservableArray<IFiles>(imagenes);
-			if(this.files.length<=0){
-				
-				const view = UIView.alloc().initWithFrame(CGRectMake(0, 0, screenWidth, screenHeight));
-				const label = UILabel.new();
-				const isDark = view.traitCollection.userInterfaceStyle;
-				label.text = this.idioma.getTranslation('no_items');
-				label.textColor = isDark==2 ? UIColor.whiteColor :UIColor.blackColor;
-				label.textAlignment = NSTextAlignment.Center;
-				label.numberOfLines = 0;
+  private async renderUI() {
+    try {
+      this.ref?.get()?.sendEvent(GalleryView.loadedEvent, GalleryView);
+      this.mediaStore = new MediaStoreiOS();
+      const imagenes = await this.mediaStore.getMedia();
+      const screenWidth = (this.nativeView as UIView).bounds.size.width;
+      const screenHeight = (this.nativeView as UIView).bounds.size.height;
+      this.files = new ObservableArray<IFiles>(imagenes);
+      if (this.files.length <= 0) {
+        const view = UIView.alloc().initWithFrame(CGRectMake(0, 0, screenWidth, screenHeight));
+        const label = UILabel.new();
+        const isDark = view.traitCollection.userInterfaceStyle;
+        label.text = this.idioma.getTranslation('no_items');
+        label.textColor = isDark == 2 ? UIColor.whiteColor : UIColor.blackColor;
+        label.textAlignment = NSTextAlignment.Center;
+        label.numberOfLines = 0;
 
-				view.addSubview(label);
+        view.addSubview(label);
 
-				// Centrar el label
-				label.translatesAutoresizingMaskIntoConstraints = false;
-				NSLayoutConstraint.activateConstraints([
-					label.centerXAnchor.constraintEqualToAnchor(view.centerXAnchor),
-					label.centerYAnchor.constraintEqualToAnchor(view.centerYAnchor),
-					label.leadingAnchor.constraintGreaterThanOrEqualToAnchor(view.leadingAnchor),
-					label.trailingAnchor.constraintLessThanOrEqualToAnchor(view.trailingAnchor)
-				]);
-				(this.nativeView as UIView).addSubview(view)
-				return 
-			}
+        // Centrar el label
+        label.translatesAutoresizingMaskIntoConstraints = false;
+        NSLayoutConstraint.activateConstraints([label.centerXAnchor.constraintEqualToAnchor(view.centerXAnchor), label.centerYAnchor.constraintEqualToAnchor(view.centerYAnchor), label.leadingAnchor.constraintGreaterThanOrEqualToAnchor(view.leadingAnchor), label.trailingAnchor.constraintLessThanOrEqualToAnchor(view.trailingAnchor)]);
+        (this.nativeView as UIView).addSubview(view);
+        return;
+      }
 
-			
+      // Header
+      const headerHeight = screenHeight * 0.1;
+      const headerView = this.createHeader(screenWidth, headerHeight);
+      headerView.backgroundColor = new Color(this.bgColorHeader).ios;
+      (this.nativeView as UIView).addSubview(headerView);
 
-			// Header
-			const headerHeight = screenHeight * 0.1;
-			const headerView = this.createHeader(screenWidth, headerHeight);
-			headerView.backgroundColor = new Color(this.bgColorHeader).ios;
-			(this.nativeView as UIView).addSubview(headerView);
+      // Body
+      const bodyHeight = screenHeight * 0.8;
+      const bodyView = this.createBody(screenWidth, bodyHeight, screenHeight);
+      (this.nativeView as UIView).addSubview(bodyView);
 
-			// Body
-			const bodyHeight = screenHeight * 0.8;
-			const bodyView = this.createBody(screenWidth, bodyHeight, screenHeight);
-			(this.nativeView as UIView).addSubview(bodyView);
-
-			// Footer
-			const footerHeight = screenHeight * 0.1;
-			const footerView = this.createFooter(screenWidth, footerHeight, headerHeight + bodyHeight);
-			footerView.backgroundColor = new Color(this.bgColorFooter).ios;
-			(this.nativeView as UIView).addSubview(footerView);
-		} catch (error) {
-			CLog('error renderUI ', error);
-		}
-	}
+      // Footer
+      const footerHeight = screenHeight * 0.1;
+      const footerView = this.createFooter(screenWidth, footerHeight, headerHeight + bodyHeight);
+      footerView.backgroundColor = new Color(this.bgColorFooter).ios;
+      (this.nativeView as UIView).addSubview(footerView);
+    } catch (error) {
+      CLog('error renderUI ', error);
+    }
+  }
 
   private createHeader(screenWidth: number, headerHeight: number): UIView {
     const headerView = UIView.alloc().initWithFrame(CGRectMake(0, 0, screenWidth, headerHeight));
@@ -405,6 +398,19 @@ export class GalleryView extends GalleryViewCommon {
     this.cv.dataSource = this.dataSource;
     this.cv.delegate = this.dataSource;
     this.cv.reloadData();
+  }
+
+  disposeNativeView(): void {
+    this.spinner = null;
+    this.contador = null;
+    this.handler = null;
+    // this.files=null;
+    this.files = null;
+    this.mediaStore = null;
+    this.cv = null;
+    this.footer = null;
+    this.btnPreview = null;
+    super.disposeNativeView();
   }
 }
 

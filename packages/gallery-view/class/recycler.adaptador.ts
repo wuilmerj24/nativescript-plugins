@@ -4,14 +4,6 @@ import { GlideMediaLoader } from './spinner.adaptador';
 
 @NativeClass()
 export class ViewHolderForListaAndrooid extends androidx.recyclerview.widget.RecyclerView.ViewHolder {
-  // public img: android.widget.ImageView;
-  // public radio: android.widget.RadioButton;
-  // constructor(private view: android.view.View, private imgId: number, private radioId: number) {
-  //   super(view);
-  //   this.img = this.itemView.findViewById(imgId) as android.widget.ImageView;
-  //   this.radio = this.itemView.findViewById(radioId) as android.widget.RadioButton;
-  // }
-
   public img: android.widget.ImageView;
   public radio: android.widget.RadioButton;
   private static bitmapPool: com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
@@ -31,15 +23,6 @@ export class ViewHolderForListaAndrooid extends androidx.recyclerview.widget.Rec
 }
 @NativeClass()
 export class ListaAdaptadorForAndroid extends androidx.recyclerview.widget.RecyclerView.Adapter<ViewHolderForListaAndrooid> {
-  // private drawablePlaceholder: number = -1;
-  // private itemSize: number;
-  // private mediaLoader: GlideMediaLoader;
-  // constructor(private files: Array<IFileData>, private colorRadio: string) {
-  //   super();
-  //   const displayMetrics = Utils.android.getApplicationContext().getResources().getDisplayMetrics();
-  //   this.itemSize = Math.floor(displayMetrics.widthPixels / 5) - 10; // Calcula el tamaño del item
-  //   this.mediaLoader = GlideMediaLoader.getInstance();
-  // }
   private drawablePlaceholder: number = -1;
   private itemSize: number;
   private mediaLoader: GlideMediaLoader;
@@ -53,11 +36,7 @@ export class ListaAdaptadorForAndroid extends androidx.recyclerview.widget.Recyc
 
     // Configuración optimizada de Glide
     this.requestManager = com.bumptech.glide.Glide.with(Utils.android.getApplicationContext());
-    this.requestOptions = new com.bumptech.glide.request.RequestOptions()
-      .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-      .placeholder(android.R.drawable.ic_menu_gallery)
-      .error(android.R.drawable.ic_menu_report_image)
-      .override(this.itemSize, this.itemSize);
+    this.requestOptions = new com.bumptech.glide.request.RequestOptions().diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL).placeholder(android.R.drawable.ic_menu_gallery).error(android.R.drawable.ic_menu_report_image).override(this.itemSize, this.itemSize);
   }
 
   public getItemCount(): number {
@@ -79,6 +58,7 @@ export class ListaAdaptadorForAndroid extends androidx.recyclerview.widget.Recyc
     img.setId(android.view.View.generateViewId());
     img.setLayoutParams(new android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
     img.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+    img.setAdjustViewBounds(true);
 
     // RadioButton en la esquina superior derecha
     const radiobtn = new android.widget.RadioButton(context);
@@ -96,33 +76,27 @@ export class ListaAdaptadorForAndroid extends androidx.recyclerview.widget.Recyc
   }
 
   public onBindViewHolder(holder: ViewHolderForListaAndrooid, position: number): void {
-    // try {
-    //   const item = this.files[position];
-
-    //   // Setear selección del RadioButton
-    //   holder.radio.setChecked(item.isSelected);
-
-    //   this.mediaLoader.loadGridImage(holder.itemView.getContext(), item.uri, holder.img);
-    // } catch (error) {
-    //   CLog('Error en Glide:', error);
-    // }
     try {
       const item = this.files[position];
       holder.radio.setChecked(item.isSelected);
 
       // Limpiar solicitudes anteriores para esta vista
       this.requestManager.clear(holder.img);
-
+      const radiusPx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 10, Utils.android.getApplicationContext().getResources().getDisplayMetrics()));
+      const myCollection = new java.util.ArrayList();
+      myCollection.add(new com.bumptech.glide.load.resource.bitmap.CenterCrop());
+      myCollection.add(new com.bumptech.glide.load.resource.bitmap.RoundedCorners(radiusPx));
       // Cargar imagen con configuración optimizada
       this.requestManager
         .load(item.uri)
         .apply(this.requestOptions)
         .override(200, 200)
-        .centerCrop()
-        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+        // .centerCrop()
+        .transform(new com.bumptech.glide.load.MultiTransformation(myCollection))
+        .thumbnail(0.1)
+        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.AUTOMATIC)
         .skipMemoryCache(false)
         .into(holder.img);
-
     } catch (error) {
       console.error('Error loading image:', error);
     }
