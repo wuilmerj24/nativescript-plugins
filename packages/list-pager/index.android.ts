@@ -52,7 +52,7 @@ export class ListPager extends ListPagerCommon {
     super.setObservableArrayInstance(value);
   }
 
-  public createNativeView() {
+  createNativeView(): Object {
     const nativeView = new androidx.recyclerview.widget.RecyclerView(this._context);
     nativeView.setLayoutParams(new android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
 
