@@ -9,10 +9,7 @@
     "noEmitHelpers": true,
     "target": "ES2020",
     "module": "ESNext",
-    "lib": [
-      "ESNext",
-      "dom"
-    ],
+    "lib": ["ESNext", "dom"],
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
@@ -23,58 +20,24 @@
       }
     ],
     "paths": {
-      "@demo/shared": [
-        "tools/demo/index.ts"
-      ],
-      "@wuilmerj24/*": [
-        "packages/*"
-      ],
-      "@wuilmerj24/country-code": [
-        "packages/country-code/index.d.ts"
-      ],
-      "@wuilmerj24/gallery-view": [
-        "packages/gallery-view/index.d.ts"
-      ],
-      "@wuilmerj24/launch-navigator": [
-        "packages/launch-navigator/index.d.ts"
-      ],
-      "@wuilmerj24/screen-orientation": [
-        "packages/screen-orientation/index.d.ts"
-      ],
-      "@wuilmerj24/screen-protector": [
-        "packages/screen-protector/index.d.ts"
-      ],
-      "@wuilmerj24/signalr": [
-        "packages/signalr/index.d.ts"
-      ],
-      "@wuilmerj24/sqlite-secure": [
-        "packages/sqlite-secure/index.d.ts"
-      ],
-      "@wuilmerj24/store-update": [
-        "packages/store-update/index.d.ts"
-      ],
-      "@wuilmerj24/time-range": [
-        "packages/time-range/index.d.ts"
-      ],
-      "@wuilmerj24/url-preview": [
-        "packages/url-preview/index.d.ts"
-      ],
-      "@wuilmerj24/country-code/angular": [
-        "packages/country-code/angular/index.ts"
-      ],
-      "@wuilmerj24/carouselm": [
-        "packages/carouselm/index.d.ts"
-      ],
-      "@wuilmerj24/carousel": [
-        "packages/carousel/index.d.ts"
-      ],
-      "@wuilmerj24/nosql": [
-        "packages/nosql/index.d.ts"
-      ]
+      "@demo/shared": ["tools/demo/index.ts"],
+      "@wuilmerj24/*": ["packages/*"],
+      "@wuilmerj24/country-code": ["packages/country-code/index.d.ts"],
+      "@wuilmerj24/gallery-view": ["packages/gallery-view/index.d.ts"],
+      "@wuilmerj24/launch-navigator": ["packages/launch-navigator/index.d.ts"],
+      "@wuilmerj24/screen-orientation": ["packages/screen-orientation/index.d.ts"],
+      "@wuilmerj24/screen-protector": ["packages/screen-protector/index.d.ts"],
+      "@wuilmerj24/signalr": ["packages/signalr/index.d.ts"],
+      "@wuilmerj24/sqlite-secure": ["packages/sqlite-secure/index.d.ts"],
+      "@wuilmerj24/store-update": ["packages/store-update/index.d.ts"],
+      "@wuilmerj24/time-range": ["packages/time-range/index.d.ts"],
+      "@wuilmerj24/url-preview": ["packages/url-preview/index.d.ts"],
+      "@wuilmerj24/country-code/angular": ["packages/country-code/angular/index.ts"],
+      "@wuilmerj24/carouselm": ["packages/carouselm/index.d.ts"],
+      "@wuilmerj24/carousel": ["packages/carousel/index.d.ts"],
+      "@wuilmerj24/nosql": ["packages/nosql/index.d.ts"],
+      "@wuilmerj24/mapbox-navigation": ["packages/mapbox-navigation/index.d.ts"]
     }
   },
-  "exclude": [
-    "node_modules",
-    "tmp"
-  ]
+  "exclude": ["node_modules", "tmp"]
 }

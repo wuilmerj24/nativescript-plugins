@@ -1,0 +1,27 @@
+repositories {
+    google {
+        content {
+            includeGroupByRegex("com\\.android.*")
+            includeGroupByRegex("com\\.google.*")
+            includeGroupByRegex("androidx.*")
+        }
+    }
+    mavenCentral()
+    gradlePluginPortal()
+    maven {
+        url "https://api.mapbox.com/downloads/v2/releases/maven"
+        authentication {
+            basic(BasicAuthentication)
+        }
+        credentials {
+            username = "mapbox"
+            password = "sk.eyJ1Ijoid3VpbG1lcm0yNCIsImEiOiJjbWVseWt3eHkwbDNrMm1vamFqZmUxdDd0In0.OTh-iNiwYna9GlsdjOrZaw";
+        }
+    }
+}
+
+
+dependencies {
+    implementation "com.mapbox.navigationcore:ui-components:3.12.0-beta.1"
+}
+

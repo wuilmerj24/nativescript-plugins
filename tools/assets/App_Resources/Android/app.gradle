@@ -5,11 +5,11 @@
 // }
 
 android {
-  compileSdkVersion 35
-  buildToolsVersion "35"
+  compileSdkVersion 36
+  buildToolsVersion "36"
   defaultConfig {
     minSdkVersion 25
-    targetSdkVersion 35
+    targetSdkVersion 36
     generatedDensities = []
   }
   aaptOptions {

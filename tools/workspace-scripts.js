@@ -162,6 +162,13 @@ module.exports = {
           description: '@wuilmerj24/nosql: Build',
         },
       },
+      // @wuilmerj24/mapbox-navigation
+      'mapbox-navigation': {
+        build: {
+          script: 'nx run mapbox-navigation:build.all',
+          description: '@wuilmerj24/mapbox-navigation: Build',
+        },
+      },
       'build-all': {
         script: 'nx run-many --target=build.all --all',
         description: 'Build all packages',
@@ -239,6 +246,10 @@ module.exports = {
       nosql: {
         script: 'nx run nosql:focus',
         description: 'Focus on @wuilmerj24/nosql',
+      },
+      'mapbox-navigation': {
+        script: 'nx run mapbox-navigation:focus',
+        description: 'Focus on @wuilmerj24/mapbox-navigation',
       },
       reset: {
         script: 'nx g @nativescript/plugin-tools:focus-packages',

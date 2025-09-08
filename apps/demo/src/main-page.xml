@@ -19,6 +19,7 @@
 
 <Button text="carousel" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
 <Button text="nosql" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
+<Button text="mapbox-navigation" tap="{{ viewDemo }}" class="btn btn-primary rounded view-demo"/>
 
 
 
