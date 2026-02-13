@@ -1,0 +1,17 @@
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>comgooglemaps</string>
+    <string>waze</string>
+    <string>citymapper</string>
+    <string>uber</string>
+    <string>lyft</string>
+    <string>yandexnavi</string>
+    <string>sygic</string>
+    <string>here-route</string>
+    <string>moovit</string>
+    <string>mapsme</string>
+    <string>cabify</string>
+    <string>taxis99</string>
+    <string>baidumap</string>
+    <string>iosamap</string>
+</array>

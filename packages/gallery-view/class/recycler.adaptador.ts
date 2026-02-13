@@ -6,37 +6,47 @@ import { GlideMediaLoader } from './spinner.adaptador';
 export class ViewHolderForListaAndrooid extends androidx.recyclerview.widget.RecyclerView.ViewHolder {
   public img: android.widget.ImageView;
   public radio: android.widget.RadioButton;
-  private static bitmapPool: com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
-  constructor(private view: android.view.View, private imgId: number, private radioId: number) {
+
+  constructor(view: android.view.View, imgId: number, radioId: number) {
     super(view);
-    this.img = this.itemView.findViewById(imgId) as android.widget.ImageView;
-    this.radio = this.itemView.findViewById(radioId) as android.widget.RadioButton;
+    this.img = view.findViewById(imgId) as android.widget.ImageView;
+    this.radio = view.findViewById(radioId) as android.widget.RadioButton;
 
-    // Configuración optimizada de ImageView
     this.img.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-    this.img.setAdjustViewBounds(true);
-
-    if (!ViewHolderForListaAndrooid.bitmapPool) {
-      ViewHolderForListaAndrooid.bitmapPool = com.bumptech.glide.Glide.get(Utils.android.getApplicationContext()).getBitmapPool();
-    }
+    this.img.setAdjustViewBounds(false);
   }
 }
+
 @NativeClass()
 export class ListaAdaptadorForAndroid extends androidx.recyclerview.widget.RecyclerView.Adapter<ViewHolderForListaAndrooid> {
-  private drawablePlaceholder: number = -1;
   private itemSize: number;
-  private mediaLoader: GlideMediaLoader;
-  private requestManager: any; // Para manejo de Glide
-  private requestOptions: any; // Opciones comunes para Glide
+  private requestManager: com.bumptech.glide.RequestManager;
+  private requestOptions: com.bumptech.glide.request.RequestOptions;
+  private transformation: com.bumptech.glide.load.MultiTransformation<any>;
+
   constructor(private files: Array<IFileData>, private colorRadio: string) {
     super();
-    const displayMetrics = Utils.android.getApplicationContext().getResources().getDisplayMetrics();
-    this.itemSize = Math.floor(displayMetrics.widthPixels / 5) - 10;
-    this.mediaLoader = GlideMediaLoader.getInstance();
 
-    // Configuración optimizada de Glide
-    this.requestManager = com.bumptech.glide.Glide.with(Utils.android.getApplicationContext());
-    this.requestOptions = new com.bumptech.glide.request.RequestOptions().diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL).placeholder(android.R.drawable.ic_menu_gallery).error(android.R.drawable.ic_menu_report_image).override(this.itemSize, this.itemSize);
+    const context = Utils.android.getApplicationContext();
+    const displayMetrics = context.getResources().getDisplayMetrics();
+
+    this.itemSize = Math.floor(displayMetrics.widthPixels / 5);
+
+    // Glide manager
+    this.requestManager = com.bumptech.glide.Glide.with(context);
+
+    // Transformaciones (UNA VEZ)
+    const radiusPx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 10, displayMetrics));
+    const transformations = new java.util.ArrayList();
+
+    transformations.add(new com.bumptech.glide.load.resource.bitmap.CenterCrop());
+
+    transformations.add(new com.bumptech.glide.load.resource.bitmap.RoundedCorners(radiusPx));
+
+    this.transformation = new com.bumptech.glide.load.MultiTransformation(transformations);
+
+    // RequestOptions (UNA VEZ)
+    this.requestOptions = new com.bumptech.glide.request.RequestOptions().override(this.itemSize, this.itemSize).diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.RESOURCE).skipMemoryCache(false).transform(this.transformation).placeholder(android.R.drawable.ic_menu_gallery).error(android.R.drawable.ic_menu_report_image);
   }
 
   public getItemCount(): number {
@@ -46,68 +56,56 @@ export class ListaAdaptadorForAndroid extends androidx.recyclerview.widget.Recyc
   public onCreateViewHolder(parent: android.view.ViewGroup, viewType: number): ViewHolderForListaAndrooid {
     const context = parent.getContext();
 
-    // Crear contenedor FrameLayout
     const fl = new android.widget.FrameLayout(context);
-    const layoutParams = new android.widget.FrameLayout.LayoutParams(this.itemSize, this.itemSize);
-    fl.setLayoutParams(layoutParams);
-    fl.setPadding(5, 5, 5, 5);
-    fl.setBackgroundColor(android.graphics.Color.BLACK);
+    fl.setLayoutParams(new android.widget.FrameLayout.LayoutParams(this.itemSize, this.itemSize));
 
-    // Imagen con Glide
     const img = new android.widget.ImageView(context);
     img.setId(android.view.View.generateViewId());
     img.setLayoutParams(new android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
-    img.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-    img.setAdjustViewBounds(true);
 
-    // RadioButton en la esquina superior derecha
-    const radiobtn = new android.widget.RadioButton(context);
+    const radio = new android.widget.RadioButton(context);
     const radioParams = new android.widget.FrameLayout.LayoutParams(80, 80);
     radioParams.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
-    radiobtn.setLayoutParams(radioParams);
-    radiobtn.setId(android.view.View.generateViewId());
-    radiobtn.setButtonTintList(android.content.res.ColorStateList.valueOf(new Color(this.colorRadio).android));
+    radio.setLayoutParams(radioParams);
+    radio.setId(android.view.View.generateViewId());
+    radio.setButtonTintList(android.content.res.ColorStateList.valueOf(new Color(this.colorRadio).android));
 
-    // Agregar vistas al FrameLayout
     fl.addView(img);
-    fl.addView(radiobtn);
+    fl.addView(radio);
 
-    return new ViewHolderForListaAndrooid(fl, img.getId(), radiobtn.getId());
+    return new ViewHolderForListaAndrooid(fl, img.getId(), radio.getId());
   }
 
   public onBindViewHolder(holder: ViewHolderForListaAndrooid, position: number): void {
-    try {
-      const item = this.files[position];
-      holder.radio.setChecked(item.isSelected);
+    const item = this.files[position];
 
-      // Limpiar solicitudes anteriores para esta vista
-      this.requestManager.clear(holder.img);
-      const radiusPx = Math.floor(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 10, Utils.android.getApplicationContext().getResources().getDisplayMetrics()));
-      const myCollection = new java.util.ArrayList();
-      myCollection.add(new com.bumptech.glide.load.resource.bitmap.CenterCrop());
-      myCollection.add(new com.bumptech.glide.load.resource.bitmap.RoundedCorners(radiusPx));
-      // Cargar imagen con configuración optimizada
-      this.requestManager
-        .load(item.uri)
-        .apply(this.requestOptions)
-        .override(200, 200)
-        // .centerCrop()
-        .transform(new com.bumptech.glide.load.MultiTransformation(myCollection))
-        .thumbnail(0.1)
-        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.AUTOMATIC)
-        .skipMemoryCache(false)
-        .into(holder.img);
-    } catch (error) {
-      console.error('Error loading image:', error);
-    }
+    holder.radio.setChecked(item.isSelected);
+
+    this.requestManager.load(item.uri).apply(this.requestOptions).into(holder.img);
   }
 
-  public onDetachedFromRecyclerView(param0: androidx.recyclerview.widget.RecyclerView): void {
-    super.onDetachedFromRecyclerView(param0);
+  public onViewRecycled(holder: ViewHolderForListaAndrooid): void {
+    super.onViewRecycled(holder);
+    this.requestManager.clear(holder.img);
   }
 
-  updateData(newItems: any[]) {
+  // ⚠️ NO usar siempre notifyDataSetChanged
+  updateItem(position: number, selected: boolean) {
+    this.files[position].isSelected = selected;
+    this.notifyItemChanged(position);
+  }
+
+  updateData(newItems: Array<IFileData>) {
+    const oldSize = this.files.length;
+
     this.files = newItems;
-    this.notifyDataSetChanged(); // Recarga toda la lista
+
+    if (oldSize > 0) {
+      this.notifyItemRangeRemoved(0, oldSize);
+    }
+
+    if (newItems.length > 0) {
+      this.notifyItemRangeInserted(0, newItems.length);
+    }
   }
 }

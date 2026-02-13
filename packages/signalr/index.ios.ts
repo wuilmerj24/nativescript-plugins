@@ -1,83 +1,163 @@
 import { Utils } from '@nativescript/core';
 import { SignalrCommon } from './common';
-import { EStateConn } from './enums/states_conn.enums';
-import { OptionsConnect } from './interfaces/conn_options.interface';
+import { SignalROptions } from './interfaces/signalroptions';
+import { SignalrState } from './types/signalrstates';
+import { TypeTransport } from './enums/typetransport';
 
 export class Signalr extends SignalrCommon {
-    protected signalr: any;
-    isConnected: EStateConn;
-    private signalrController: SignalrForNs;
-    async create(options: OptionsConnect): Promise<any> {
-        return new Promise(async (rs, rj) => {
-            this.isConnected = EStateConn.CONNECTING;
-            this.signalrController = new SignalrForNs({
-                url: options.url,
-                accessToken: options.accessToken,
-                shouldSkipNegotiate: options.shouldSkipNegotiate,
-                headers: options.headers,
-                handshakeResponseTimeout: options.handshakeResponseTimeout,
-                keepAliveInterval: options.keepAliveInterval,
-                serverTimeout: options.serverTimeout,
-                transport: options.transport,
-                reconnect: options.reconnect,
-            });
+  private signalrWrapper: NSCSwiftSignalrWrapper;
+  constructor(options: SignalROptions) {
+    super(options);
 
-            this.signalrController.startConn();
-            this.signalrController.onInitCallBack = (p1: string, p2: any) => {
-                if (p1 == 'connectionDidFailToOpenHandler') {
-                    this.isConnected = EStateConn.DISCONNECTED;
+    this.signalrWrapper = NSCSwiftSignalrWrapper.alloc().init();
 
-                    rj(p2);
-                } else if (p1 == 'connectionDidOpenHandler') {
-                    this.isConnected = EStateConn.CONNECTED;
-                    console.log(this.signalrController.getIdConn());
-                    rs(this.signalrController);
-                }
-            };
+    if (options.accessToken) {
+      this.signalrWrapper.setAccessToken(options.accessToken);
+    }
+
+    if (options.shouldSkipNegotiate) {
+      this.signalrWrapper.setSkipNegotiation(options.shouldSkipNegotiate ? 1 : 0);
+    }
+
+    if (options.handshakeResponseTimeout) {
+      this.signalrWrapper.setHandshakeResponseTime(options.handshakeResponseTimeout);
+    }
+
+    if (options.keepAliveInterval) {
+      this.signalrWrapper.setKeepAliveInterval(options.keepAliveInterval);
+    }
+
+    if (options.serverTimeout) {
+      this.signalrWrapper.setServerTimeout(options.serverTimeout);
+    }
+
+    let transport = 3;
+    if (options.transport) {
+      if (options.transport == TypeTransport.ALL) {
+        transport = 2;
+      } else if (options.transport == TypeTransport.LONG_POLLING) {
+        transport = 1;
+      } else {
+        transport = 3;
+      }
+    }
+    this.signalrWrapper.setTransport(transport);
+
+    if (options.reconnect) {
+      this.signalrWrapper.setReconnect(options.reconnect ? 1 : 0);
+    }
+    if (options.url) {
+      this.signalrWrapper.setUrl(options.url);
+      this.signalrWrapper.initConnection();
+    } else {
+      console.log('Url not set');
+    }
+  }
+
+  start(): Promise<void> {
+    return new Promise((rs, rj) => {
+      this.signalrWrapper.start((p1?: number, p2?: NSError) => {
+        if (p2) {
+          console.log(p2.localizedDescription);
+          rj(p2.localizedDescription);
+        }
+
+        rs();
+      });
+    });
+  }
+
+  stop(): Promise<boolean> {
+    return new Promise((rs, rj) => {
+      this.signalrWrapper.stop((p1: number, p2: NSError) => {
+        if (p2) {
+          console.log('error in stop ', p2.localizedDescription);
+          rj(p2.localizedDescription);
+        }
+
+        rs(true);
+      });
+    });
+  }
+
+  invoke(method: string, args: any[]): Promise<any> {
+    return new Promise((rs, rj) => {
+      this.signalrWrapper.invokeWithMethodData(method, args, (p1, p2) => {
+        if (p2) {
+          console.log(p2.localizedDescription);
+          rj(p2.localizedDescription);
+        }
+
+        console.log(p1);
+        rs(p1);
+      });
+    });
+  }
+  on(method: string, callback: (...args: any[]) => void): void {
+    this.signalrWrapper.onMethod(method, (p1, p2) => {
+      if (p2) {
+        console.log(p2.localizedDescription);
+      }
+      console.log('evento ', p1);
+      callback(JSON.parse(p1));
+    });
+  }
+  off(method: string): void {
+    this.signalrWrapper.offWithMethod(method, (p1, p2) => {
+      if (p2) {
+        console.log(p2.localizedDescription);
+      }
+      console.log(p1);
+    });
+  }
+  getId(): string {
+    throw new Error('In Construction .');
+  }
+
+  private getStateAsync(): Promise<any> {
+    return new Promise((rs, rj) => {
+      try {
+        this.signalrWrapper.getConnState((p1) => {
+          rs(p1);
         });
+      } catch (error) {
+        rj(error);
+      }
+    });
+  }
+  async getConnState(): Promise<SignalrState> {
+    const state = await this.getStateAsync();
+
+    switch (state) {
+      case 'CONNECTING':
+        return 'CONNECTING';
+      case 'CONNECTED':
+        return 'CONNECTED';
+      case 'RECONNECTING':
+        return 'RECONNECTING';
+      default:
+        return 'DISCONNECTED';
     }
+  }
 
-    disconnect(): void {
-        if ((this.signalrController != null || this.signalrController != undefined) && this.isConnected == EStateConn.CONNECTED) {
-            if (this.signalrController.disconnect()) {
-                this.isConnected = EStateConn.DISCONNECTED;
-            }
-        }
-    }
+  onClose(callback: (param: string) => void): void {
+    this.signalrWrapper.onClose((p1) => {
+      console.log('onClose', p1);
+      callback(p1);
+    });
+  }
 
-    conectionId() {
-        if (this.isConnected) {
-            return this.signalrController.getIdConn();
-        }
-    }
+  onReconnecting(callback: (param: string) => void): void {
+    this.signalrWrapper.onReconnecting((p1) => {
+      console.log('onReconnecting ', p1);
+      callback(p1);
+    });
+  }
 
-    on(event: string, callback: (...payload: any[]) => void): () => void {
-        if (this.signalrController != null || this.signalrController != undefined) {
-            this.signalrController.setOnEventoWithEventNameCompletion(event, (data: any) => {
-                const datos = Utils.dataDeserialize(data);
-                callback(datos);
-            });
-
-            return () => {
-                // @ts-ignore
-            };
-        }
-    }
-
-    emit(event: string, ...payload: any[]): void {
-        if (this.signalrController != null || this.signalrController != undefined) {
-            this.signalrController.setSendWithEventNameDataCompletion(event, payload, (p1: any) => { });
-        }
-    }
-
-    off(event: string): void {
-        if (this.signalrController != null || this.signalrController != undefined) {
-        }
-    }
-
-    onClose(callback: () => void): () => void {
-        return () => {
-
-        }
-    }
+  onReconnected(callback: (param: string) => void): void {
+    this.signalrWrapper.onReconnected((p1) => {
+      console.log('onReconnected ', p1);
+      callback(p1);
+    });
+  }
 }

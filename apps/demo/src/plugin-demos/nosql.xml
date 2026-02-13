@@ -6,8 +6,7 @@
     <StackLayout class="p-20">
         <ScrollView class="h-full">
           <StackLayout>
-          
-            <Button text="Run" tap="{{ runAutomaticDemo }}" class="btn btn-primary"/>           
+            <Button text="Test nosql" tap="{{ runFullTest }}" class="btn btn-primary"/>
 
           </StackLayout>
         </ScrollView>

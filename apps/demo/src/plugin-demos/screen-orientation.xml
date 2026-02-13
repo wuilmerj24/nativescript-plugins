@@ -6,9 +6,8 @@
     <StackLayout class="p-20">
         <ScrollView class="h-full">
           <StackLayout>
-            <Button text="GetOrientacion" tap="{{ getOrientaicon }}" class="btn btn-primary"/>
-            <Button text="SetOrientacion" tap="{{ setOrientationF }}" class="btn btn-primary"/>
-
+            <Button text="Orientacion" tap="{{ getOrientacion }}" class="btn btn-primary"/>
+            <Button text="Change" tap="{{ changeOrientacion }}" class="btn btn-primary mt-10"/>
           </StackLayout>
         </ScrollView>
     </StackLayout>

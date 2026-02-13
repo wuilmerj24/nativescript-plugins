@@ -21,6 +21,12 @@
       "@wuilmerj24/carousel": ["../../packages/carousel/index.d.ts"],
       "@wuilmerj24/nosql": ["../../packages/nosql/index.d.ts"],
       "@wuilmerj24/mapbox-navigation": ["../../packages/mapbox-navigation/index.d.ts"]
-    }
+    },
+    "target": "es2020",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "removeComments": false,
+    "lib": ["ESNext"]
   }
 }

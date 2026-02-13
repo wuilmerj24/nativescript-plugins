@@ -1,15 +1,21 @@
-import { Observable } from '@nativescript/core';
-import { EStateConn } from './enums/states_conn.enums';
-import { OptionsConnect } from './interfaces/conn_options.interface';
+import { SignalROptions } from './interfaces/signalroptions';
+import { SignalrState } from './types/signalrstates';
 
 export abstract class SignalrCommon {
-    protected abstract signalr: any;
-    isConnected: EStateConn;
-    abstract create(options: OptionsConnect): Promise<any>;
-    abstract disconnect(): void;
-    abstract conectionId(): string;
-    abstract emit(event: string, payload: any[]): void;
-    abstract on(event: string, callback: (...payload) => void): void;
-    abstract off(event: string): void;
-    abstract onClose(callback: () => void): () => void;
+  protected options: SignalROptions;
+  constructor(options: SignalROptions) {
+    this.options = options;
+  }
+
+  abstract start(): Promise<void>;
+  abstract stop(): Promise<boolean>;
+  abstract invoke(method: string, args: any[]): Promise<any>;
+  abstract on(method: string, callback: (...args: any[]) => void): void;
+  abstract off(method: string): void;
+  abstract getId(): string;
+  abstract getConnState(): Promise<SignalrState>;
+  abstract onClose(callback: (param: string) => void): void;
+  //only ios
+  abstract onReconnecting(callback: (param: string) => void): void;
+  abstract onReconnected(callback: (param: string) => void): void;
 }

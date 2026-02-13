@@ -1,4 +1,4 @@
-import { Observable, EventData, Page } from '@nativescript/core';
+import { Observable, EventData, Page, Application } from '@nativescript/core';
 import { DemoSharedCountryCode } from '@demo/shared';
 import {} from '@wuilmerj24/country-code';
 

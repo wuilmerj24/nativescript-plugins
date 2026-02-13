@@ -1,95 +1,122 @@
-import { Application, Color, ObservableArray, Screen, Utils, View } from '@nativescript/core';
+import { Application, Color, Dialogs, ImageSource, Utils, View } from '@nativescript/core';
 import { LanguageController } from './class/language.class';
-import { CLog, GalleryViewCommon, GetSetProperty, IFileData, IFiles, TipoFile } from './common';
+import { CLog, GalleryViewCommon, GetSetProperty, IFileData, IFiles, IGalleryData, TipoFile } from './common';
 import { ELanguage } from './language.enum';
-import { check as checkPermission, openSettings, request as requestPermission, Status } from '@nativescript-community/perms';
 import { MediaStoreiOS } from './class/mediastore.ios';
-import { CollectionViewDataSourceDelegate } from './class/uiviewcontroller';
-import { ImageModal } from './class/modal.ios';
+import { check as checkPermission, openSettings, request as requestPermission, Status } from '@nativescript-community/perms';
+import { TapHandler, TapHandlerB } from './class/handlers.class';
+import { AlbumSelectorViewController } from './class/albunselector.ios.class';
+import { GalleryGridView } from './class/uicollectionview.ios.class';
+import { ImagePreviewViewController } from './class/modal.ios';
 
 export interface CollectionViewEvents {
   onItemSelected?: (item: any, position: number, indexPath: NSIndexPath) => void; // Evento cuando se selecciona un ítem
   onScroll?: (offsetX: number, offsetY: number) => void; // Evento cuando se hace scroll
 }
 
-export interface CloseModalEvento {
-  onClose?: () => boolean;
-}
-
 export class GalleryView extends GalleryViewCommon {
   public tapEvent: string = 'tap';
-  private spinner: UIButton;
-  private contador: UILabel;
-  private handler = TapHandler.initWithOwner(new WeakRef(this));
-  // private files: Array<IFiles> = new Array();
-  private files: ObservableArray<IFiles> = new ObservableArray();
-  private mediaStore: MediaStoreiOS;
-  private cv: UICollectionView;
-  private footer: UIView;
-  private btnPreview: UIButton;
-  @GetSetProperty()
-  public language: ELanguage;
-  @GetSetProperty()
-  public file_type: TipoFile;
-  @GetSetProperty()
-  public showHeader: boolean;
-  @GetSetProperty()
-  public bgColorHeader: string;
-  @GetSetProperty()
-  public textcolorHeader: string;
-  @GetSetProperty()
-  public maxItemSelect: number;
-  @GetSetProperty()
-  public showFooter: boolean;
-  @GetSetProperty()
-  public bgColorFooter: string;
-  @GetSetProperty()
-  public textColorFooter: string;
-  @GetSetProperty()
-  public edit: boolean;
-  @GetSetProperty()
-  public preview: boolean;
-  @GetSetProperty()
-  colorRadio: string;
-  // VARIABLES locals
-  private idioma: LanguageController;
-  private events: CollectionViewEvents;
-  private dataSource;
-  private imageButton: UIImageView;
   private ref = new WeakRef(this);
-  constructor() {
-    super();
-    this.iosIgnoreSafeArea = true;
-  }
+  private files: Array<IFiles> = [];
+  private mediaStore: MediaStoreiOS;
 
-  createNativeView(): UIView {
-    this.idioma = new LanguageController(this.language);
-    this.nativeView = UIView.new();
-    (this.nativeView as UIView).translatesAutoresizingMaskIntoConstraints = false;
-    const isDark = (this.nativeView as UIView).traitCollection.userInterfaceStyle;
-    (this.nativeView as UIView).backgroundColor = isDark == 2 ? UIColor.blackColor : UIColor.whiteColor;
-    return this.nativeView;
-  }
+  @GetSetProperty() public language: ELanguage;
+  @GetSetProperty() public file_type: TipoFile;
+  @GetSetProperty() public bgColorHeader: string;
+  @GetSetProperty() public textcolorHeader: string;
+  @GetSetProperty() public maxItemSelect: number;
+  @GetSetProperty() public showFooter: boolean;
+  @GetSetProperty() public bgColorFooter: string;
+  @GetSetProperty() public textColorFooter: string;
+  @GetSetProperty() public edit: boolean;
+  @GetSetProperty() public preview: boolean;
+  @GetSetProperty() colorRadio: string;
 
-  async onLoaded() {
-    super.onLoaded();
-    const permissionsGranted = await this.checkPerms();
-    if (permissionsGranted) {
-      CLog('Ambos permisos concedidos');
-      Utils.setTimeout(() => {
-        this.renderUI();
-      }, 10);
-    } else {
-      CLog('Uno o ambos permisos denegados');
-      await this.solicitarPermisos()
-        .then((res) => {
-          this.renderUI();
-        })
-        .catch((err) => {});
+  private idioma: LanguageController;
+  private handlers = TapHandler.initWithOwner(new WeakRef(this));
+  // iOS Views
+  headerView: UIView;
+  bodyView: UIView;
+  footerView: UIView;
+
+  iconImageView: UIImageView;
+  titleLabel: UILabel;
+  subtitleLabel: UILabel;
+
+  leftButton: UIButton;
+  rightButton: UIButton;
+  galleryGridView: GalleryGridView;
+  // -------------------------------------------------
+  // ROOT VIEW
+  // -------------------------------------------------
+  createNativeView(): Object {
+    try {
+      this.idioma = new LanguageController(this.language);
+
+      const nativeView = UIView.new();
+      nativeView.translatesAutoresizingMaskIntoConstraints = true;
+
+      return nativeView;
+    } catch (error) {
+      this.ref?.get()?.sendEvent(GalleryView.errorEvent, this, error);
     }
   }
 
-  async checkPerms(): Promise<boolean> {
+  async initNativeView() {
+    try {
+      super.initNativeView();
+      this.ref?.get()?.sendEvent(GalleryView.loadedEvent, GalleryView);
+      const permissionsGranted = await this.checkPerms();
+      if (permissionsGranted) {
+        CLog('Ambos permisos concedidos');
+        this.mediaStore = new MediaStoreiOS();
+        const imagenes = await this.mediaStore.getMedia();
+        this.files = imagenes;
+        if (this.files.length <= 0) {
+          this.showCenteredMessage(this.idioma.getTranslation('no_items'));
+          return;
+        }
+        this.createHeader();
+        this.createBody();
+        this.createFooter();
+        this.setupConstraints();
+      } else {
+        CLog('Uno o ambos permisos denegados');
+        await this.solicitarPermisos()
+          .then((res) => {
+            this.showCenteredMessage(this.idioma.getTranslation('no_permisos'));
+            this.ref?.get()?.sendEvent(GalleryView.errorEvent, this, null);
+            return;
+          })
+          .catch((err) => {
+            this.ref?.get()?.sendEvent(GalleryView.errorEvent, this, err);
+          });
+      }
+    } catch (error) {
+      this.ref?.get()?.sendEvent(GalleryView.errorEvent, this, error);
+    }
+  }
+
+  private showCenteredMessage(text: string) {
+    try {
+      const emptyLabel = UILabel.new();
+      emptyLabel.translatesAutoresizingMaskIntoConstraints = false;
+      emptyLabel.text = text;
+      emptyLabel.textAlignment = NSTextAlignment.Center;
+      emptyLabel.numberOfLines = 0; // text wrap
+      emptyLabel.textColor = UIColor.systemBackgroundColor;
+      emptyLabel.font = UIFont.systemFontOfSize(16);
+
+      const container = this.nativeView as UIView;
+      container.addSubview(emptyLabel);
+
+      NSLayoutConstraint.activateConstraints([emptyLabel.centerXAnchor.constraintEqualToAnchor(container.centerXAnchor), emptyLabel.centerYAnchor.constraintEqualToAnchor(container.centerYAnchor), emptyLabel.leadingAnchor.constraintGreaterThanOrEqualToAnchorConstant(container.leadingAnchor, 24), emptyLabel.trailingAnchor.constraintLessThanOrEqualToAnchorConstant(container.trailingAnchor, -24)]);
+    } catch (error) {
+      this.ref?.get()?.sendEvent(GalleryView.errorEvent, this, error);
+    }
+  }
+
+  private async checkPerms(): Promise<boolean> {
     try {
       const videoPermission = await checkPermission('video', { type: 'always' });
       const photoPermission = await checkPermission('photo', { type: 'always' });
@@ -118,337 +145,324 @@ export class GalleryView extends GalleryViewCommon {
     }
   }
 
-  private async renderUI() {
-    try {
-      this.ref?.get()?.sendEvent(GalleryView.loadedEvent, GalleryView);
-      this.mediaStore = new MediaStoreiOS();
-      const imagenes = await this.mediaStore.getMedia();
-      const screenWidth = (this.nativeView as UIView).bounds.size.width;
-      const screenHeight = (this.nativeView as UIView).bounds.size.height;
-      this.files = new ObservableArray<IFiles>(imagenes);
-      if (this.files.length <= 0) {
-        const view = UIView.alloc().initWithFrame(CGRectMake(0, 0, screenWidth, screenHeight));
-        const label = UILabel.new();
-        const isDark = view.traitCollection.userInterfaceStyle;
-        label.text = this.idioma.getTranslation('no_items');
-        label.textColor = isDark == 2 ? UIColor.whiteColor : UIColor.blackColor;
-        label.textAlignment = NSTextAlignment.Center;
-        label.numberOfLines = 0;
-
-        view.addSubview(label);
-
-        // Centrar el label
-        label.translatesAutoresizingMaskIntoConstraints = false;
-        NSLayoutConstraint.activateConstraints([label.centerXAnchor.constraintEqualToAnchor(view.centerXAnchor), label.centerYAnchor.constraintEqualToAnchor(view.centerYAnchor), label.leadingAnchor.constraintGreaterThanOrEqualToAnchor(view.leadingAnchor), label.trailingAnchor.constraintLessThanOrEqualToAnchor(view.trailingAnchor)]);
-        (this.nativeView as UIView).addSubview(view);
-        return;
-      }
-
-      // Header
-      const headerHeight = screenHeight * 0.1;
-      const headerView = this.createHeader(screenWidth, headerHeight);
-      headerView.backgroundColor = new Color(this.bgColorHeader).ios;
-      (this.nativeView as UIView).addSubview(headerView);
-
-      // Body
-      const bodyHeight = screenHeight * 0.8;
-      const bodyView = this.createBody(screenWidth, bodyHeight, screenHeight);
-      (this.nativeView as UIView).addSubview(bodyView);
-
-      // Footer
-      const footerHeight = screenHeight * 0.1;
-      const footerView = this.createFooter(screenWidth, footerHeight, headerHeight + bodyHeight);
-      footerView.backgroundColor = new Color(this.bgColorFooter).ios;
-      (this.nativeView as UIView).addSubview(footerView);
-    } catch (error) {
-      CLog('error renderUI ', error);
+  tapHandler: any;
+  // -------------------------------------------------
+  // HEADER
+  // -------------------------------------------------
+  private createHeader() {
+    // this.headerView = UIView.new();
+    this.headerView = UIView.alloc().init();
+    this.headerView.translatesAutoresizingMaskIntoConstraints = false;
+    this.headerView.backgroundColor = UIColor.systemBlueColor;
+    if (this.bgColorHeader) {
+      this.headerView.backgroundColor = new Color(this.bgColorHeader).ios;
     }
-  }
 
-  private createHeader(screenWidth: number, headerHeight: number): UIView {
-    const headerView = UIView.alloc().initWithFrame(CGRectMake(0, 0, screenWidth, headerHeight));
+    // Icon
+    this.iconImageView = UIImageView.new();
+    this.iconImageView.translatesAutoresizingMaskIntoConstraints = false;
+    this.iconImageView.image = UIImage.systemImageNamed('photo');
+    this.iconImageView.contentMode = UIViewContentMode.ScaleAspectFill;
+    this.iconImageView.tintColor = UIColor.whiteColor;
+    this.setHeaderIconFromAsset(this.files[0].iconIos);
+    // Tamaño fijo 50x50
+    NSLayoutConstraint.activateConstraints([this.iconImageView.widthAnchor.constraintEqualToConstant(50), this.iconImageView.heightAnchor.constraintEqualToConstant(50)]);
 
-    const buttonWidth = screenWidth * 0.7;
-    this.spinner = UIButton.buttonWithType(UIButtonType.System);
-    this.spinner.setTitleForState(this.files.getItem(0).albunName, UIControlState.Normal);
-    this.spinner.frame = CGRectMake(0, 0, buttonWidth, headerHeight);
-    this.spinner.menu = this.createSpinner();
-    this.spinner.showsMenuAsPrimaryAction = true;
-    this.spinner.tintColor = null;
-    this.spinner.setTitleColorForState(new Color(this.textcolorHeader).ios, UIControlState.Normal);
-    const imagePath = this.files.getItem(0).icon?.replace('file://', '');
-    if (imagePath && NSFileManager.defaultManager.fileExistsAtPath(imagePath)) {
-      const imageData = NSData.dataWithContentsOfFile(imagePath);
-      const image = imageData ? UIImage.imageWithData(imageData) : null;
+    // Bordes redondeados
+    this.iconImageView.layer.cornerRadius = 5;
+    this.iconImageView.clipsToBounds = true;
 
-      if (image) {
-        this.imageButton = UIImageView.alloc().initWithImage(image);
-        const imageSize = headerHeight * 0.8;
-        this.imageButton.frame = CGRectMake(5, 5, imageSize, imageSize);
-        this.imageButton.layer.cornerRadius = 5;
-        this.imageButton.layer.masksToBounds = true;
-        this.spinner.addSubview(this.imageButton);
-      }
+    // Title
+    this.titleLabel = UILabel.new();
+    this.titleLabel.translatesAutoresizingMaskIntoConstraints = false;
+    this.titleLabel.font = UIFont.boldSystemFontOfSize(17);
+    this.titleLabel.text = 'Galería';
+    this.titleLabel.textColor = UIColor.whiteColor;
+    if (this.textcolorHeader) {
+      this.titleLabel.textColor = new Color(this.textcolorHeader).ios;
     }
-    headerView.addSubview(this.spinner);
-    this.contador = this.createContador(screenWidth, buttonWidth, headerHeight);
-    headerView.addSubview(this.contador);
-    return headerView;
-  }
+    this.titleLabel.numberOfLines = 1;
+    this.titleLabel.lineBreakMode = NSLineBreakMode.ByTruncatingTail;
+    this.titleLabel.textAlignment = NSTextAlignment.Left;
 
-  private createSpinner(): UIMenu {
-    const actions = this.files.map((option) => {
-      const imageView = UIImageView.alloc().initWithFrame(CGRectMake(0, 0, 30, 30));
-      imageView.sd_setImageWithURLCompleted(NSURL.URLWithString(option.icon), null);
-      return UIAction.actionWithTitleImageIdentifierHandler(option.albunName, imageView.image, option.id, () => {
-        this.files.forEach((value: IFiles) => {
-          value.isSelected = false;
-          value.data.forEach((data: IFileData) => {
-            data.isSelected = false;
-          });
-        });
-        this.contador.text = `0/${this.maxItemSelect}`;
-        option.isSelected = true;
-        this.spinner.tintColor = null;
-        this.spinner.setTitleForState(option.albunName, UIControlState.Normal);
-        const imagePath = option.icon?.replace('file://', '');
-        if (imagePath && NSFileManager.defaultManager.fileExistsAtPath(imagePath)) {
-          const imageData = NSData.dataWithContentsOfFile(imagePath);
-          const image = imageData ? UIImage.imageWithData(imageData) : null;
+    // Subtitle
+    this.subtitleLabel = UILabel.new();
+    this.subtitleLabel.translatesAutoresizingMaskIntoConstraints = false;
+    this.subtitleLabel.font = UIFont.systemFontOfSize(13);
+    this.subtitleLabel.text = `0/${this.maxItemSelect}`;
+    this.subtitleLabel.textColor = UIColor.whiteColor.colorWithAlphaComponent(0.8);
+    if (this.textcolorHeader) {
+      this.subtitleLabel.textColor = new Color(this.textcolorHeader).ios;
+    }
+    this.subtitleLabel.numberOfLines = 1;
+    this.subtitleLabel.lineBreakMode = NSLineBreakMode.ByTruncatingTail;
+    this.subtitleLabel.textAlignment = NSTextAlignment.Center;
 
-          if (image) {
-            const screenHeight = (this.nativeView as UIView).bounds.size.height;
-            // Header
-            const headerHeight = screenHeight * 0.1;
-            this.imageButton = UIImageView.alloc().initWithImage(image);
-            const imageSize = headerHeight * 0.8;
-            this.imageButton.frame = CGRectMake(5, 5, imageSize, imageSize);
-            this.imageButton.layer.cornerRadius = 5;
-            this.imageButton.layer.masksToBounds = true;
-            this.spinner.addSubview(this.imageButton);
-            this.updateCollectionView();
-          }
-        }
-        Utils.setTimeout(() => {
-          (this.nativeView as UIView).setNeedsDisplay();
-        }, 100);
-      });
+    this.headerView.addSubview(this.iconImageView);
+    this.headerView.addSubview(this.titleLabel);
+    this.headerView.addSubview(this.subtitleLabel);
+    this.nativeView.addSubview(this.headerView);
+
+    NSLayoutConstraint.activateConstraints([
+      // ICON
+      this.iconImageView.leadingAnchor.constraintEqualToAnchorConstant(this.headerView.leadingAnchor, 16),
+      this.iconImageView.centerYAnchor.constraintEqualToAnchor(this.headerView.centerYAnchor),
+      this.iconImageView.widthAnchor.constraintEqualToConstant(50),
+      this.iconImageView.heightAnchor.constraintEqualToConstant(50),
+
+      // TITLE (50% del header)
+      this.titleLabel.leadingAnchor.constraintEqualToAnchorConstant(this.iconImageView.trailingAnchor, 12),
+      this.titleLabel.centerYAnchor.constraintEqualToAnchor(this.headerView.centerYAnchor),
+      this.titleLabel.widthAnchor.constraintEqualToAnchorMultiplier(this.headerView.widthAnchor, 0.5),
+
+      // SUBTITLE (resto del espacio)
+      this.subtitleLabel.leadingAnchor.constraintEqualToAnchorConstant(this.titleLabel.trailingAnchor, 12),
+      this.subtitleLabel.centerYAnchor.constraintEqualToAnchor(this.headerView.centerYAnchor),
+      this.subtitleLabel.trailingAnchor.constraintEqualToAnchorConstant(this.headerView.trailingAnchor, -16),
+    ]);
+
+    this.headerView.userInteractionEnabled = true;
+    this.tapHandler = TapHandlerB.initWithCallback((recognizer: UITapGestureRecognizer) => {
+      this.onHeaderTap();
     });
-    const actionsArray = Array.from(actions);
+    const tapGesture = UITapGestureRecognizer.alloc().initWithTargetAction(this.tapHandler, 'handleTap');
 
-    const imageView = UIImageView.alloc().initWithFrame(CGRectMake(0, 0, 30, 30));
-    imageView.sd_setImageWithURLCompleted(NSURL.URLWithString(this.files.getItem(0).icon), null);
-    let menu = UIMenu.menuWithTitleImageIdentifierOptionsChildren('', imageView.image, this.files.getItem(0).id, UIMenuOptions.DisplayInline, actionsArray);
-    return menu;
+    tapGesture.numberOfTapsRequired = 1;
+
+    this.headerView.addGestureRecognizer(tapGesture);
   }
 
-  private createContador(screenWidth: number, buttonWidth: number, headerHeight: number): UILabel {
-    const labelWidth = screenWidth * 0.3;
-    const label = UILabel.alloc().initWithFrame(CGRectMake(buttonWidth, 0, labelWidth, headerHeight));
-    if (this.files != null) {
-      let cont = Array.from(this.files.filter((item) => item.isSelected))[0]?.data.filter((item) => item.isSelected).length || 0;
-      label.text = `${cont}/${this.maxItemSelect}`;
-    }
-    label.textAlignment = NSTextAlignment.Center;
-    label.textColor = new Color(this.textcolorHeader).ios;
-    return label;
-  }
-
-  private createBody(screenWidth: number, bodyHeight: number, screenHeight: number): UIView {
-    const bodyView = UIView.alloc().initWithFrame(CGRectMake(0, screenHeight * 0.1, screenWidth, bodyHeight));
-    bodyView.backgroundColor = UIColor.blackColor;
-
-    this.cv = this.createCollectionView(screenWidth, bodyHeight);
-    bodyView.addSubview(this.cv);
-
-    return bodyView;
-  }
-
-  private createFooter(screenWidth: number, footerHeight: number, yPosition: number): UIView {
-    const footerView = UIView.alloc().initWithFrame(CGRectMake(0, yPosition, screenWidth, footerHeight));
-    footerView.backgroundColor = new Color(this.bgColorFooter).ios;
-    const color = new Color(this.bgColorFooter).ios;
-    this.btnPreview = this.createButton(this.idioma.getTranslation('titulo_btn_preview'), color, 0, screenWidth / 2, footerHeight);
-    this.btnPreview.addTargetActionForControlEvents(this.handler, 'preview', UIControlEvents.TouchUpInside);
-    if (this.preview) {
-      footerView.addSubview(this.btnPreview);
-    }
-
-    (this.nativeView as UIView).bringSubviewToFront(this.btnPreview);
-    const button2 = this.createButton(this.idioma.getTranslation('titulo_btn_edit'), color, screenWidth / 2, screenWidth / 2, footerHeight);
-    button2.addTargetActionForControlEvents(this.handler, 'edit', UIControlEvents.TouchUpInside);
-    if (this.edit) {
-      footerView.addSubview(button2);
-    }
-
-    return footerView;
-  }
-
-  public openModal() {
+  onHeaderTap() {
     try {
-      const data: Array<IFileData> = new Array();
-      for (let i: number = 0; i < this.files.length; i++) {
-        if (this.files.getItem(i).isSelected) {
-          for (let j: number = 0; j < this.files.getItem(i).data.length; j++) {
-            if (this.files.getItem(i).data[j].isSelected) {
-              const dato = this.files.getItem(i).data[j];
-              data.push(dato);
-            }
-          }
-        }
-      }
+      const selectorVC = AlbumSelectorViewController.initWithAlbums(this.files, (album) => {
+        console.log(album.albunName);
+        this.onAlbumSelected(album);
+      });
 
-      const modalViewController = new ImageModal(data, {
-        onClose() {
-          CLog('close modal from main');
-          this.btnPreview.addTargetActionForControlEvents(this.handler, 'click', UIControlEvents.TouchUpInside);
-          Application.ios.resetRootView();
-          return false;
-        },
-      });
-      modalViewController.modalPresentationStyle = UIModalPresentationStyle.FormSheet;
-      const rootController = Application.ios.rootController;
-      rootController.presentViewControllerAnimatedCompletion(modalViewController, true, () => {
-        CLog('abrio');
-      });
+      selectorVC.modalPresentationStyle = UIModalPresentationStyle.FormSheet;
+
+      const rootVC = Application.ios.rootController;
+      rootVC.presentViewControllerAnimatedCompletion(selectorVC, true, null);
     } catch (error) {
-      CLog('error tap', error);
+      console.log(error);
     }
   }
 
-  private createButton(title: string, color: UIColor, x: number, width: number, height: number): UIButton {
-    const button = UIButton.buttonWithType(UIButtonType.System);
-    button.frame = CGRectMake(x, 0, width, height);
-    button.setTitleForState(title, UIControlState.Normal);
-    button.backgroundColor = color;
-    button.setTitleColorForState(UIColor.whiteColor, UIControlState.Normal);
-    button.layer.cornerRadius = 5;
-    button.tag = Math.random();
-    button.setTitleColorForState(new Color(this.textColorFooter).ios, UIControlState.Normal);
-    return button;
+  private onAlbumSelected(album: IFiles) {
+    this.setHeaderIconFromAsset(album.iconIos);
+    this.titleLabel.text = album.albunName;
+    const newItems = album.data ?? [];
+    this.galleryGridView.setItems(newItems);
+    this.subtitleLabel.text = `0/${this.maxItemSelect}`;
   }
 
-  private createCollectionView(screenWidth: number, bodyHeight: number): UICollectionView {
-    try {
-      const layout = UICollectionViewFlowLayout.alloc().init();
-      const itemSize = (screenWidth - 60) / 5; // 5 ítems por fila
-      layout.itemSize = CGSizeMake(itemSize, itemSize);
-      layout.minimumInteritemSpacing = 10;
-      layout.minimumLineSpacing = 10;
-      layout.sectionInset = new UIEdgeInsets({ top: 5, left: 5, bottom: 5, right: 5 });
+  // -------------------------------------------------
+  // BODY
+  // -------------------------------------------------
+  private createBody() {
+    this.bodyView = UIView.new();
+    this.bodyView.translatesAutoresizingMaskIntoConstraints = false;
+    this.bodyView.backgroundColor = UIColor.redColor;
 
-      const cv = UICollectionView.alloc().initWithFrameCollectionViewLayout(CGRectZero, layout);
-      cv.registerClassForCellWithReuseIdentifier(UICollectionViewCell.class(), 'Cell');
-      cv.frame = CGRectMake(0, 0, screenWidth, bodyHeight);
-      this.events = {
-        onItemSelected: (item, position, indexPath) => {
-          for (let i: number = 0; i < this.files.length; i++) {
-            if (this.files.getItem(i).isSelected) {
-              // Cambiar el estado de selección del archivo en la posición dada
-              this.files.getItem(i).data[position].isSelected != this.files.getItem(i).data[position].isSelected;
+    this.nativeView.addSubview(this.bodyView);
 
-              // Contar los archivos seleccionados dentro de `data`
-              const contador: number = this.files.getItem(i).data.filter((item) => item.isSelected).length;
-              this.contador.text = `${contador}/${this.maxItemSelect}`;
-              break;
-            }
+    // ⚠️ ASEGURAR DATA VÁLIDA
+    const items = this.files[0]?.data ?? [];
+    console.log('GRID ITEMS:', items.length);
+
+    this.galleryGridView = GalleryGridView.initWithItems(items);
+    this.galleryGridView.setRadioColor(new Color(this.colorRadio).ios);
+    // 🔴 OBLIGATORIO
+    this.galleryGridView.translatesAutoresizingMaskIntoConstraints = false;
+
+    // 🔴 PRIMERO addSubview
+    this.bodyView.addSubview(this.galleryGridView);
+
+    // 🔴 DESPUÉS constraints
+    NSLayoutConstraint.activateConstraints([this.galleryGridView.topAnchor.constraintEqualToAnchor(this.bodyView.topAnchor), this.galleryGridView.leadingAnchor.constraintEqualToAnchor(this.bodyView.leadingAnchor), this.galleryGridView.trailingAnchor.constraintEqualToAnchor(this.bodyView.trailingAnchor), this.galleryGridView.bottomAnchor.constraintEqualToAnchor(this.bodyView.bottomAnchor)]);
+    Utils.executeOnMainThread(() => {
+      this.galleryGridView.collectionView.reloadData();
+      this.galleryGridView.setMaxSelectable(this.maxItemSelect);
+      this.galleryGridView.setEvents({
+        onItemSelected: async (item, position, indexPath) => {
+          // 1. Actualizar el contador en la UI
+          const selectedItems = this.galleryGridView.getSelectedItems() as IFileData[];
+          this.subtitleLabel.text = `${selectedItems.length}/${this.maxItemSelect}`;
+
+          try {
+            // 2. Crear el array de objetos con ID e ImageSource
+            const results = await Promise.all(
+              selectedItems.map(async (file) => {
+                const imgSource = await this.convertPHAssetToImageSource(file.asset);
+                return {
+                  id: file.id, // El localIdentifier que guardaste en MediaStoreiOS
+                  image: imgSource,
+                };
+              })
+            );
+
+            // 3. Enviar el evento con el nuevo array estructurado
+            this.ref?.get()?.sendEvent(GalleryView.clickEvent, results);
+          } catch (error) {
+            // Enviar el evento de error si algo falla en la conversión
+            this.ref?.get()?.sendEvent(GalleryView.errorEvent, {
+              message: 'Error al convertir assets',
+              error: error,
+            });
           }
-
-          const archivosSeleccionados = this.files
-            .map((file) => ({
-              ...file,
-              data: file.data.filter((item) => item.isSelected), // Solo incluir los elementos seleccionados dentro de `data`
-            }))
-            .filter((file) => file.data.length > 0); // Filtrar archivos sin elementos seleccionados
-
-          this.ref?.get()?.sendEvent(GalleryView.clickEvent, archivosSeleccionados);
         },
         onScroll: (offsetX, offsetY) => {
-          CLog('Posición del scroll en otra parte del código - X:', offsetX, 'Y:', offsetY);
-          const archivosSeleccionados = this.files
-            .map((file) => ({
-              ...file,
-              data: file.data.filter((item) => item.isSelected), // Solo incluir los elementos seleccionados dentro de `data`
-            }))
-            .filter((file) => file.data.length > 0); // Filtrar archivos sin elementos seleccionados
-
-          this.ref?.get()?.sendEvent(GalleryView.scrollEvent, archivosSeleccionados, null, offsetX, offsetY);
+          this.ref?.get()?.sendEvent(GalleryView.scrollEvent, this.galleryGridView.getSelectedItems(), null, offsetX, offsetY);
         },
-      };
-      this.dataSource = new CollectionViewDataSourceDelegate(cv, this.files.getItem(0).data, this.events, this.maxItemSelect, this.colorRadio);
-      cv.dataSource = this.dataSource;
-      cv.delegate = this.dataSource;
-
-      return cv;
-    } catch (error) {
-      CLog(error);
-    }
+      });
+    });
   }
 
-  private updateCollectionView(): void {
-    let index: number = -1;
-    for (let i: number = 0; i < this.files.length; i++) {
-      if (this.files.getItem(i).isSelected) {
-        index = i;
-        break;
+  private convertPHAssetToImageSource(asset: PHAsset): Promise<ImageSource> {
+    return new Promise((resolve, reject) => {
+      const manager = PHImageManager.defaultManager();
+      const options = PHImageRequestOptions.new();
+
+      options.synchronous = false;
+      options.networkAccessAllowed = true; // Importante para fotos en iCloud
+      options.deliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat;
+
+      // Pedimos un tamaño de 300x300 para que sea rápido pero se vea bien
+      const targetSize = CGSizeMake(300, 300);
+
+      manager.requestImageForAssetTargetSizeContentModeOptionsResultHandler(asset, targetSize, PHImageContentMode.AspectFill, options, (image: UIImage, info: NSDictionary<any, any>) => {
+        if (image) {
+          resolve(new ImageSource(image));
+        } else {
+          // Si falla (ej. sin internet para iCloud), devolvemos null o error
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  // -------------------------------------------------
+  // FOOTER
+  // -------------------------------------------------
+  private createFooter() {
+    if (!this.showFooter) return; // Si no hay footer, no hacemos nada aquí
+
+    this.footerView = UIView.new();
+    this.footerView.translatesAutoresizingMaskIntoConstraints = false;
+    this.footerView.backgroundColor = UIColor.systemBackgroundColor;
+    if (this.bgColorFooter) {
+      this.footerView.backgroundColor = new Color(this.bgColorFooter).ios;
+    }
+
+    this.leftButton = UIButton.buttonWithType(this.preview ? UIButtonType.System : UIButtonType.Plain);
+    this.leftButton.translatesAutoresizingMaskIntoConstraints = false;
+    this.leftButton.addTargetActionForControlEvents(this.handlers, 'openPreview', UIControlEvents.TouchUpInside);
+    this.leftButton.setTitleForState(this.idioma.getTranslation('titulo_btn_preview'), UIControlState.Normal);
+    this.leftButton.setTitleColorForState(new Color(this.textColorFooter).ios, UIControlState.Normal);
+    if (this.preview) {
+      this.footerView.addSubview(this.leftButton);
+    }
+    this.rightButton = UIButton.buttonWithType(this.edit ? UIButtonType.System : UIButtonType.Plain);
+    this.rightButton.translatesAutoresizingMaskIntoConstraints = false;
+    this.rightButton.addTargetActionForControlEvents(this.handlers, 'openEdit', UIControlEvents.TouchUpInside);
+    this.rightButton.setTitleForState(this.idioma.getTranslation('titulo_btn_edit'), UIControlState.Normal);
+    this.rightButton.setTitleColorForState(new Color(this.textColorFooter).ios, UIControlState.Normal);
+    if (this.edit) {
+      this.footerView.addSubview(this.rightButton);
+    }
+
+    this.nativeView.addSubview(this.footerView);
+  }
+
+  // -------------------------------------------------
+  // CONSTRAINTS
+  // -------------------------------------------------
+
+  private setupConstraints() {
+    const container = this.nativeView as UIView;
+
+    // 1. HEADER (Este sí suele respetar el Safe Area superior por el notch/isla dinámica)
+    NSLayoutConstraint.activateConstraints([this.headerView.topAnchor.constraintEqualToAnchor(container.safeAreaLayoutGuide.topAnchor), this.headerView.leadingAnchor.constraintEqualToAnchor(container.leadingAnchor), this.headerView.trailingAnchor.constraintEqualToAnchor(container.trailingAnchor), this.headerView.heightAnchor.constraintEqualToConstant(70)]);
+
+    if (this.showFooter && this.footerView) {
+      // 1. Constraints base del Footer (Borde real de pantalla)
+      NSLayoutConstraint.activateConstraints([this.footerView.leadingAnchor.constraintEqualToAnchor(container.leadingAnchor), this.footerView.trailingAnchor.constraintEqualToAnchor(container.trailingAnchor), this.footerView.bottomAnchor.constraintEqualToAnchor(container.bottomAnchor), this.footerView.heightAnchor.constraintEqualToConstant(85)]);
+
+      // 2. Lógica de botones
+      if (this.preview && this.edit) {
+        // AMBOS BOTONES: 50/50
+        NSLayoutConstraint.activateConstraints([this.leftButton.leadingAnchor.constraintEqualToAnchor(this.footerView.leadingAnchor), this.leftButton.topAnchor.constraintEqualToAnchor(this.footerView.topAnchor), this.leftButton.bottomAnchor.constraintEqualToAnchor(this.footerView.safeAreaLayoutGuide.bottomAnchor), this.rightButton.trailingAnchor.constraintEqualToAnchor(this.footerView.trailingAnchor), this.rightButton.topAnchor.constraintEqualToAnchor(this.footerView.topAnchor), this.rightButton.bottomAnchor.constraintEqualToAnchor(this.footerView.safeAreaLayoutGuide.bottomAnchor), this.leftButton.widthAnchor.constraintEqualToAnchor(this.rightButton.widthAnchor), this.rightButton.leadingAnchor.constraintEqualToAnchor(this.leftButton.trailingAnchor)]);
+      } else if (this.preview) {
+        // SOLO LEFT BUTTON: Anclado a la izquierda, ocupa la mitad
+        NSLayoutConstraint.activateConstraints([this.leftButton.leadingAnchor.constraintEqualToAnchor(this.footerView.leadingAnchor), this.leftButton.topAnchor.constraintEqualToAnchor(this.footerView.topAnchor), this.leftButton.bottomAnchor.constraintEqualToAnchor(this.footerView.safeAreaLayoutGuide.bottomAnchor), this.leftButton.widthAnchor.constraintEqualToAnchorMultiplier(this.footerView.widthAnchor, 0.5)]);
+      } else if (this.edit) {
+        // SOLO RIGHT BUTTON: Anclado a la derecha, ocupa la mitad
+        NSLayoutConstraint.activateConstraints([this.rightButton.trailingAnchor.constraintEqualToAnchor(this.footerView.trailingAnchor), this.rightButton.topAnchor.constraintEqualToAnchor(this.footerView.topAnchor), this.rightButton.bottomAnchor.constraintEqualToAnchor(this.footerView.safeAreaLayoutGuide.bottomAnchor), this.rightButton.widthAnchor.constraintEqualToAnchorMultiplier(this.footerView.widthAnchor, 0.5)]);
       }
-    }
 
-    this.dataSource = new CollectionViewDataSourceDelegate(this.cv, this.files.getItem(index).data, this.events, this.maxItemSelect, this.colorRadio);
-    this.cv.dataSource = this.dataSource;
-    this.cv.delegate = this.dataSource;
-    this.cv.reloadData();
-  }
-
-  disposeNativeView(): void {
-    this.spinner = null;
-    this.contador = null;
-    this.handler = null;
-    // this.files=null;
-    this.files = null;
-    this.mediaStore = null;
-    this.cv = null;
-    this.footer = null;
-    this.btnPreview = null;
-    super.disposeNativeView();
-  }
-}
-
-@NativeClass()
-class TapHandler extends NSObject {
-  private _ownerRef: WeakRef<any>; // Almacena una referencia débil al owner
-
-  // Método de inicialización que acepta un WeakRef
-  public static initWithOwner(ownerRef: WeakRef<any>): TapHandler {
-    const handler = TapHandler.new() as TapHandler;
-    handler._ownerRef = ownerRef;
-    return handler;
-  }
-
-  // Método que se ejecuta cuando se hace clic en el botón
-  public preview(nativeButton: UIButton, nativeEvent: _UIEvent) {
-    // Recuperar el owner desde la referencia débil
-    const owner = this._ownerRef?.get();
-    if (owner) {
-      owner.openModal();
-    } else {
-      console.log('Owner ya no está disponible (fue liberado de memoria).');
+      // 3. BODY anclado al tope del footer
+      NSLayoutConstraint.activateConstraints([this.bodyView.topAnchor.constraintEqualToAnchor(this.headerView.bottomAnchor), this.bodyView.leadingAnchor.constraintEqualToAnchor(container.leadingAnchor), this.bodyView.trailingAnchor.constraintEqualToAnchor(container.trailingAnchor), this.bodyView.bottomAnchor.constraintEqualToAnchor(this.footerView.topAnchor)]);
     }
   }
 
-  public edit(nativeButton: UIButton, nativeEvent: _UIEvent) {
-    // Recuperar el owner desde la referencia débil
-    const owner = this._ownerRef?.get();
-    if (owner) {
-      console.log('This section is under construction. Coming soon!');
-    } else {
-      console.log('Owner ya no está disponible (fue liberado de memoria).');
+  // -------------------------------------------------
+  // API PÚBLICA
+  // -------------------------------------------------
+
+  private setHeaderIconFromAsset(asset: PHAsset) {
+    const manager = PHImageManager.defaultManager();
+    const options = PHImageRequestOptions.new();
+    options.deliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat;
+    options.resizeMode = PHImageRequestOptionsResizeMode.Fast;
+    options.networkAccessAllowed = true;
+
+    manager.requestImageForAssetTargetSizeContentModeOptionsResultHandler(asset, CGSizeMake(50, 50), PHImageContentMode.AspectFit, options, (image: UIImage, info) => {
+      if (image) {
+        this.iconImageView.image = image;
+      }
+    });
+  }
+
+  private onPreviewDismissed() {
+    Utils.executeOnMainThread(() => {
+      // 🔴 CLAVE: el botón invisible se queda capturando el primer tap
+      // Forzamos layout
+      this.nativeView.layoutIfNeeded();
+
+      const selectedCount = this.galleryGridView.getSelectedIds().length;
+      this.subtitleLabel.text = `${selectedCount}/${this.maxItemSelect}`;
+    });
+  }
+
+  private resetCollectionViewGestures() {
+    const gestures = this.galleryGridView.collectionView.gestureRecognizers;
+    if (!gestures) {
+      return;
+    }
+
+    for (let i = 0; i < gestures.count; i++) {
+      const g = gestures.objectAtIndex(i) as UIGestureRecognizer;
+      g.enabled = false;
+      g.enabled = true;
     }
   }
 
-  // Exponer el método `preview` a Objective-C
-  public static ObjCExposedMethods = {
-    preview: { returns: interop.types.void, params: [interop.types.id, interop.types.id] },
-    edit: { returns: interop.types.void, params: [interop.types.id, interop.types.id] },
-  };
+  public openPreview() {
+    const selectedItems: IFileData[] = this.galleryGridView.getSelectedItems();
+
+    if (!selectedItems.length) {
+      return;
+    }
+    const previewVC = ImagePreviewViewController.initWithItems(selectedItems);
+
+    previewVC.modalPresentationStyle = UIModalPresentationStyle.FormSheet;
+    previewVC.onDismiss = () => {
+      console.log('se cerro la modal');
+      this.onPreviewDismissed();
+    };
+
+    Application.ios.rootController.presentViewControllerAnimatedCompletion(previewVC, true, () => {
+      console.log('abrio la modal');
+    });
+  }
 }

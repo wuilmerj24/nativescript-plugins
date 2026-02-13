@@ -16,7 +16,7 @@
         rangerColor="#DA70D6"
         thumbStartColor="#E6E6FA"
         thumbEndColor="#E9967A"
-        insideRangeColor="#FF69B4"
+        insideRangeColor="green"
         startImage="icon"
         endImage="icon"
         showInsideRange="true"

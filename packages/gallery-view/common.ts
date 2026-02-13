@@ -1,4 +1,4 @@
-import { ContentView } from '@nativescript/core';
+import { ContentView, ImageSource } from '@nativescript/core';
 import { EGalleryViewEvents } from './events';
 import { ELanguage } from './language.enum';
 export enum TipoFile {
@@ -12,14 +12,21 @@ export interface IFiles {
   data: Array<IFileData>;
   isSelected: boolean;
   icon: string;
+  iconIos: PHAsset;
 }
 
 export interface IFileData {
   id: string;
-  uri: string;
+  uri?: string;
+  asset?: PHAsset;
   isSelected: boolean;
   info?: any;
   tipo: TipoFile;
+}
+
+export interface IGalleryData {
+  id: string;
+  imagesource: ImageSource;
 }
 
 export class GalleryViewUtil {
@@ -59,6 +66,8 @@ export class GalleryViewCommon extends ContentView {
   public edit: boolean = true;
   @GetSetProperty()
   colorRadio: string = 'red';
+  @GetSetProperty()
+  public showFooter: boolean = true;
 
   public sendEvent(eventName: string, data?: any, msg?: string, dx?: number, dy?: number) {
     this.notify({

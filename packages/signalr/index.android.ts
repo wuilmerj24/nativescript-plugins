@@ -1,189 +1,269 @@
-import { Utils } from '@nativescript/core';
 import { SignalrCommon } from './common';
-import { EStateConn } from './enums/states_conn.enums';
-import { TypeTransport } from './enums/types_transport.enums';
-import { OptionsConnect } from './interfaces/conn_options.interface';
+import { TypeTransport } from './enums/typetransport';
+import { SignalROptions } from './interfaces/signalroptions';
+import { SignalrState } from './types/signalrstates';
+import { Utils } from '@nativescript/core';
 
 export class Signalr extends SignalrCommon {
-    protected signalr: com.microsoft.signalr.HubConnection;
-    private options: OptionsConnect;
-    create(options: OptionsConnect): Promise<any> {
-        this.options = options;
-        return new Promise(async (rs, rj) =>{
-            try {
-                this.isConnected = EStateConn.CONNECTING;
-                const builder = com.microsoft.signalr.HubConnectionBuilder.create(options.url);
-                if (options.shouldSkipNegotiate) {
-                    builder.shouldSkipNegotiate(options.shouldSkipNegotiate);
-                }
+  private hubConnection: com.microsoft.signalr.HubConnection;
+  private wuilemrj24Class;
+  constructor(options: SignalROptions) {
+    super(options);
+    let builder = com.microsoft.signalr.HubConnectionBuilder.create(options.url);
+    if (options.accessToken) {
+      console.log('Set accesstoken');
+      builder = builder.withAccessTokenProvider(
+        io.reactivex.rxjava3.core.Single.defer(
+          new io.reactivex.rxjava3.functions.Supplier<any>({
+            get() {
+              return io.reactivex.rxjava3.core.Single.just(options.accessToken);
+            },
+          })
+        )
+      );
+    }
 
-                if (options.accessToken) {
-                    builder.withAccessTokenProvider(
-                        io.reactivex.rxjava3.core.Single.defer(
-                            new io.reactivex.rxjava3.functions.Supplier<any>({
-                                get() {
-                                    return io.reactivex.rxjava3.core.Single.just(options.accessToken);
-                                },
-                            })
-                        )
-                    );
-                }
+    if (options.shouldSkipNegotiate) {
+      console.log('Set shouldSkipNegotiate');
+      builder.shouldSkipNegotiate(options.shouldSkipNegotiate);
+    }
 
-                if (options.headers) {
-                    const headers: java.util.Map<string, string> = new java.util.HashMap<string, string>();
+    if (options.handshakeResponseTimeout) {
+      console.log('Set handshakeResponseTimeout');
+      builder.withHandshakeResponseTimeout(options.handshakeResponseTimeout);
+    }
 
-                    for (let i: number = 0; i < options.headers.length; i++) {
-                        headers.put(options.headers[i].name, options.headers[i].value);
-                    }
-                    builder.withHeaders(headers);
-                }
+    if (options.keepAliveInterval) {
+      console.log('Set keepAliveInterval');
+      builder.withKeepAliveInterval(options.keepAliveInterval);
+    }
 
-                if (options.handshakeResponseTimeout) {
-                    builder.withHandshakeResponseTimeout(options.handshakeResponseTimeout);
-                }
+    if (options.serverTimeout) {
+      console.log('Set serverTimeout');
+      builder.withServerTimeout(options.serverTimeout);
+    }
 
-                if (options.keepAliveInterval) {
-                    builder.withKeepAliveInterval(options.keepAliveInterval);
-                }
+    if (options.transport) {
+      console.log('Set transport');
+      let transport: com.microsoft.signalr.TransportEnum = options.transport;
+      switch (options.transport) {
+        case TypeTransport.ALL:
+          transport = com.microsoft.signalr.TransportEnum.ALL;
+          break;
+        case TypeTransport.LONG_POLLING:
+          transport = com.microsoft.signalr.TransportEnum.LONG_POLLING;
+          break;
+        case TypeTransport.WEBSOCKETS:
+          transport = com.microsoft.signalr.TransportEnum.WEBSOCKETS;
+          break;
+        default:
+          transport = com.microsoft.signalr.TransportEnum.WEBSOCKETS;
+          break;
+      }
+      console.log(transport);
+      builder.withTransport(transport);
+    }
 
-                if (options.transport) {
-                    let transport: com.microsoft.signalr.TransportEnum = options.transport;
-                    switch (options.transport) {
-                        case TypeTransport.ALL:
-                            transport = com.microsoft.signalr.TransportEnum.ALL;
-                            break;
-                        case TypeTransport.LONG_POLLING:
-                            transport = com.microsoft.signalr.TransportEnum.LONG_POLLING;
-                            break;
-                        case TypeTransport.WEBSOCKETS:
-                            transport = com.microsoft.signalr.TransportEnum.WEBSOCKETS;
-                            break;
-                        default:
-                            transport = com.microsoft.signalr.TransportEnum.WEBSOCKETS;
-                            break;
-                    }
-                    builder.withTransport(transport);
-                }
-                this.signalr = builder.build();
+    if (options.headers) {
+      console.log('Set headers');
+      const headers: java.util.Map<string, string> = new java.util.HashMap<string, string>();
+      Object.entries(options.headers).forEach(([key, value]) => {
+        console.log(`Add header| Key: ${key}, value: ${value}`);
+        headers.put(key, value);
+      });
+      builder.withHeaders(headers);
+    }
 
-                await this.signalr.start().subscribe(
-                    new io.reactivex.rxjava3.functions.Action({
-                        run:()=> {
-                            this.isConnected = this.getConnectionState(this.signalr.getConnectionState());
-                            rs(this.signalr);
-                        },
-                    }),
-                    new io.reactivex.rxjava3.functions.Consumer<any>({
-                        accept:(param0: java.lang.Throwable)=> {
-                            rj(param0.getMessage());
-                        },
-                    })
-                );
+    this.hubConnection = builder.build();
+  }
 
-            } catch (error) {
-                console.log(error);
-                rj(error);           
-            }
+  start(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.hubConnection.start().subscribe(
+        new io.reactivex.rxjava3.functions.Action({
+          run: () => {
+            console.log('conected? ', this.hubConnection.getConnectionState(), this.hubConnection.getConnectionId());
+          },
+        }),
+        new io.reactivex.rxjava3.functions.Consumer<any>({
+          accept: (param0: java.lang.Throwable) => {
+            console.log(param0.getMessage());
+          },
         })
-    }
+      );
+    });
+  }
 
-    disconnect(): void {
-        if (this.isConnected == EStateConn.CONNECTED) {
-            this.signalr.stop();
-        }
-    }
+  stop(): Promise<boolean> {
+    return new Promise((rs, rj) => {
+      this.hubConnection.stop().subscribe(
+        new io.reactivex.rxjava3.functions.Action({
+          run: () => {
+            rs(true);
+          },
+        }),
+        new io.reactivex.rxjava3.functions.Consumer<any>({
+          accept(param0: java.lang.Throwable) {
+            console.log(param0.getMessage());
+            rj(false);
+          },
+        })
+      );
+    });
+  }
 
-    conectionId(): string {
-        return this.signalr.getConnectionId();
-    }
+  invoke(method: string, data: any[]): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log(data);
+        const finalArgs = this.preparePayloadForJava(data);
+        console.log(finalArgs);
+        this.hubConnection.invoke(method, finalArgs);
 
-    on(event: string, callback: (...payload) => void): () => void {
-        console.log("evento ",event);
-        // @ts-ignore
-        this.signalr.on(
-            event,
-            new com.microsoft.signalr.Action1({
-                invoke:(param0)=>{
-                    if (param0 instanceof java.util.ArrayList) {
-                        const gson: com.google.gson.Gson = new com.google.gson.Gson();
-                        const jsonString: string = gson.toJson(param0);
-                        const jsonArray: org.json.JSONArray = new org.json.JSONArray(jsonString);
-                        const data: Array<any> = Utils.dataDeserialize(jsonArray);
-                        callback(data);
-                    } else if (param0 instanceof com.google.gson.internal.LinkedTreeMap) {
-                        const gson: com.google.gson.Gson = new com.google.gson.Gson();
-                        const jsonString = gson.toJson(param0);
-                        const jsonObject: org.json.JSONObject = new org.json.JSONObject(jsonString);
-                        const data = Utils.dataDeserialize(jsonObject);
-                        callback(data);
-                    } else {
-                        const data = Utils.dataDeserialize(param0);
-                        callback(data);
-                    }
-                },
-            }),
-            java.lang.Object.class
-        );
-        return () => {
-            // @ts-ignore
-            this.signalr.remove(event);
-        };
-    }
+        resolve();
+      } catch (err) {
+        console.error('⚠️ Error invoking method:', err);
+        reject(err);
+      }
+    });
+  }
+  preparePayloadForJava(jsArray: any[]): any {
+    // 1. Crear la lista nativa que contendrá los objetos
+    const javaList = new java.util.ArrayList<any>();
 
-    off(event: string) {
-        // @ts-ignore
-        this.signalr.remove(event);
-    }
+    jsArray.forEach((item) => {
+      const hashMap = new java.util.HashMap<any, any>();
 
+      Object.keys(item).forEach((key) => {
+        let value = item[key];
 
-    emit(event: string, payload: any[]) {
-        if (!event) {
-            throw Error('Emit Failed: No Event argument');
-        }
-        this.signalr.send(event, payload);
-    }
-    
-    onClose(callback: () => void): () => void {
-        this.signalr.onClosed(
-            new com.microsoft.signalr.OnClosedCallback({
-                invoke:(param0: java.lang.Exception)=> {
-                    this.isConnected = this.getConnectionState(this.signalr.getConnectionState());
-                    console.log("STATE ", this.isConnected);
-                    if (this.options.reconnect) {
-                        let intervalo;
-                        intervalo = Utils.setInterval(async () => {
-                            this.isConnected = this.getConnectionState(this.signalr.getConnectionState());
-                            console.log("STATE reconnecting... ", this.isConnected);
-                            if (this.signalr.getConnectionState() == com.microsoft.signalr.HubConnectionState.DISCONNECTED) {
-                                await this.create(this.options);
-                            } else {
-                                this.isConnected = this.getConnectionState(this.signalr.getConnectionState());
-                                console.log("STATE connected... ", this.isConnected);
-                                Utils.clearInterval(intervalo);
-                                callback();
-                            }
-                        }, 5000);
-                    } else {
-                        callback();
-                    }
-
-                },
-            })
-        );
-        return () => {
-
-        }
-    }
-
-    private getConnectionState(state: com.microsoft.signalr.HubConnectionState): EStateConn {
-        if (state == com.microsoft.signalr.HubConnectionState.DISCONNECTED) {
-            return EStateConn.DISCONNECTED;
-        } else if (state == com.microsoft.signalr.HubConnectionState.CONNECTED) {
-            return EStateConn.CONNECTED;
-        } else if (state == com.microsoft.signalr.HubConnectionState.DISCONNECTED) {
-            return EStateConn.DISCONNECTED;
+        // Conversión explícita para evitar errores de tipos en el bridge
+        if (value === null || value === undefined) {
+          hashMap.put(key, null);
+        } else if (typeof value === 'number') {
+          // Forzamos a Double de Java para que el bridge no se confunda
+          hashMap.put(key, java.lang.Double.valueOf(value));
+        } else if (typeof value === 'boolean') {
+          hashMap.put(key, java.lang.Boolean.valueOf(value));
+        } else if (typeof value === 'object' && !Array.isArray(value)) {
+          // Aquí podrías procesar objetos anidados si fuera necesario
+          hashMap.put(key, value.toString());
         } else {
-            return EStateConn.DISCONNECTED;
+          hashMap.put(key, value);
         }
+      });
+
+      javaList.add(hashMap);
+    });
+
+    // 2. Crear el contenedor de argumentos (Object[] de tamaño 1)
+    // Esto es lo que SignalR Java recibe como 'Object... args'
+    const argsForJava = java.lang.reflect.Array.newInstance(java.lang.Object.class, 1);
+
+    // 3. Insertar la lista en la posición 0
+    // Usamos java.lang.reflect.Array.set para asegurar la compatibilidad nativa
+    java.lang.reflect.Array.set(argsForJava, 0, javaList);
+
+    return argsForJava;
+  }
+
+  on(method: string, callback: (...args: any[]) => void): void {
+    try {
+      this.hubConnection.on(
+        method,
+        new com.microsoft.signalr.Action1({
+          invoke: (jsonString) => {
+            try {
+              const data = JSON.parse(jsonString); // ✅ Array u objeto
+              callback(data);
+            } catch (e) {
+              console.error('❌ Error parsing SignalR JSON payload', e, jsonString);
+            }
+          },
+        }),
+        java.lang.String.class // clave: String.class
+      );
+    } catch (error) {
+      console.error('❌ Error registering hub listener', error);
     }
+  }
+
+  off(method: string): void {
+    throw new Error('Method not implemented.');
+  }
+  getId(): string {
+    return this.hubConnection.getConnectionId();
+  }
+  async getConnState(): Promise<SignalrState> {
+    let state: SignalrState;
+    switch (this.hubConnection.getConnectionState()) {
+      case com.microsoft.signalr.HubConnectionState.CONNECTING:
+        state = 'CONNECTING';
+        break;
+      case com.microsoft.signalr.HubConnectionState.CONNECTED:
+        state = 'CONNECTED';
+        break;
+      case com.microsoft.signalr.HubConnectionState.DISCONNECTED:
+        state = 'DISCONNECTED';
+        break;
+    }
+    return state;
+  }
+
+  private reconnecting = false;
+  private reconnectAttempts = 0;
+  private readonly MAX_RETRIES = 5;
+
+  onClose(callback: (param: string) => void): void {
+    this.hubConnection.onClosed(
+      new com.microsoft.signalr.OnClosedCallback({
+        invoke: (ex: java.lang.Exception) => {
+          const msg = ex?.getMessage() ?? 'Connection closed';
+          console.log('SignalR CLOSED:', msg);
+          this.reconnect();
+
+          callback(msg);
+        },
+      })
+    );
+  }
+
+  private reconnect() {
+    if (this.reconnecting) return;
+    if (!this.options.reconnect) return;
+
+    this.reconnecting = true;
+
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
+
+    console.log(`SignalR reconnecting in ${delay}ms`);
+
+    Utils.setInterval(() => {
+      if (this.hubConnection.getConnectionState() === com.microsoft.signalr.HubConnectionState.CONNECTED) {
+        this.reconnecting = false;
+        return;
+      }
+      console.log('SignalR reconnecting....');
+      this.hubConnection.start().subscribe(
+        new io.reactivex.rxjava3.functions.Action({
+          run: () => {
+            console.log('conected? ', this.hubConnection.getConnectionState(), this.hubConnection.getConnectionId());
+          },
+        }),
+        new io.reactivex.rxjava3.functions.Consumer<any>({
+          accept: (param0: java.lang.Throwable) => {
+            console.log(param0.getMessage());
+          },
+        })
+      );
+    }, delay);
+  }
+
+  onReconnecting(callback: (param: string) => void): void {
+    console.log('onReconnecting only for iOS');
+  }
+
+  onReconnected(callback: (param: string) => void): void {
+    console.log('onReconnected only for iOS');
+  }
 }

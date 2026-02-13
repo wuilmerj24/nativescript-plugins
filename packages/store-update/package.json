@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/store-update",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "description": "NativeScript Store Update Plugin This plugin allows you to detect if a new version of your app is available in the App Store (iOS) or Google Play Store (Android) and redirects the user to the store to update.",
   "main": "index",
   "types": "index.d.ts",

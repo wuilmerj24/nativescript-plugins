@@ -1,62 +1,63 @@
-import { Application, Utils } from '@nativescript/core';
+import { Application } from '@nativescript/core';
+import { TOrientation, ScreenOrientationCommon } from './common';
 
-export const Orientacion = Object.freeze({
-    ANY: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
-    PORTRAIT: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
-    PORTRAIT_REVERSE: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT,
-    PORTRAIT_SENSOR: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT,
-    LANDSCAPE: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
-    LANDSCAPE_REVERSE: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
-    LANDSCAPE_SENSOR: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
-    UNSPECIFIED: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
-});
+export class ScreenOrientation extends ScreenOrientationCommon {
+  lock(orientation: TOrientation): void {
+    const activity = Application.android.foregroundActivity || Application.android.startActivity;
 
-export let setOrientacion = async function (orientacion: number): Promise<any> {
-    return new Promise(async (rs, rj) => {
-        try {
-            await Application.android.foregroundActivity.setRequestedOrientation(orientacion);
-            rs(true);
-        } catch (e) {
-            console.log('Error setOrientacion: ', e);
-            if (rj) {
-                rj(e);
-            }
-        }
-    });
-};
+    if (!activity) return;
 
-export let getOrientacion = () => {
-    return nombreOrientacion(Application.android.context.getResources().getConfiguration().orientation);
-};
+    switch (orientation) {
+      case 'portrait':
+        activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        break;
 
-function nombreOrientacion(orientacion: number): string {
-    switch (orientacion) {
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED:
-            return 'ANY';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT:
-            return 'PORTRAIT';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT:
-            return 'PORTRAIT_REVERSE';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT:
-            return 'PORTRAIT_SENSOR';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE:
-            return 'LANDSCAPE';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE:
-            return 'LANDSCAPE_REVERSE';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE:
-            return 'LANDSCAPE_SENSOR';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER:
-            return 'USER_ORIENTACION';
-            break;
-        case android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED:
-            return 'UNSPECIFIED';
-            break;
+      case 'portraitUpsideDown':
+        activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT);
+        break;
+
+      case 'landscape':
+        activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        break;
+
+      case 'landscapeLeft':
+        activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE);
+        break;
+
+      case 'landscapeRight':
+        activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        break;
+
+      default:
+        this.unlock();
     }
+  }
+  unlock(): void {
+    const activity = Application.android.foregroundActivity || Application.android.startActivity;
+
+    activity?.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+  }
+
+  getOrientation(): TOrientation {
+    const wm = Application.android.context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager;
+
+    const rotation = wm.getDefaultDisplay().getRotation();
+
+    switch (rotation) {
+      case android.view.Surface.ROTATION_0:
+        return 'portrait';
+
+      case android.view.Surface.ROTATION_180:
+        return 'portraitUpsideDown';
+
+      case android.view.Surface.ROTATION_90:
+        return 'landscapeRight';
+
+      case android.view.Surface.ROTATION_270:
+        return 'landscapeLeft';
+
+      default:
+        return 'unknown';
+    }
+  }
 }

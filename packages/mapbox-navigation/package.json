@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/mapbox-navigation",
-  "version": "1.0.0",
+  "version": "0.1.0-beta.1",
   "description": "Add a plugin description",
   "main": "index",
   "types": "index.d.ts",

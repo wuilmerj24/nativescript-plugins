@@ -1,7 +1,4 @@
 declare class SDImagePhotosLoader extends NSObject implements SDImageLoader {
-  canLoadWithURL(url: NSURL): boolean;
-  loadImageWithURLOptionsContextProgressCompleted(url: NSURL, options: SDWebImageOptions, context: NSDictionary<string, any>, progressBlock: (p1: number, p2: number, p3: NSURL) => void, completedBlock: (p1: UIImage, p2: NSData, p3: NSError, p4: boolean) => void): SDWebImageOperation;
-
   static alloc(): SDImagePhotosLoader; // inherited from NSObject
 
   static new(): SDImagePhotosLoader; // inherited from NSObject
@@ -26,7 +23,13 @@ declare class SDImagePhotosLoader extends NSObject implements SDImageLoader {
 
   readonly; // inherited from NSObjectProtocol
 
+  /**
+   * @since 8.0
+   * @deprecated 100000
+   */
   canRequestImageForURL(url: NSURL): boolean;
+
+  canRequestImageForURLOptionsContext(url: NSURL, options: SDWebImageOptions, context: NSDictionary<string, any>): boolean;
 
   class(): typeof NSObject;
 
@@ -52,31 +55,39 @@ declare class SDImagePhotosLoader extends NSObject implements SDImageLoader {
 
   self(): this;
 
+  /**
+   * @since 8.0
+   * @deprecated 100000
+   */
   shouldBlockFailedURLWithURLError(url: NSURL, error: NSError): boolean;
+
+  shouldBlockFailedURLWithURLErrorOptionsContext(url: NSURL, error: NSError, options: SDWebImageOptions, context: NSDictionary<string, any>): boolean;
 }
 
-declare let SDWebImageContextPhotosFetchOptions: string;
+declare var SDWebImageContextPhotosFetchOptions: string;
 
-declare let SDWebImageContextPhotosImageRequestOptions: string;
+declare var SDWebImageContextPhotosImageRequestOptions: string;
 
-declare let SDWebImageContextPhotosRequestImageData: string;
+declare var SDWebImageContextPhotosRequestImageData: string;
 
 declare const enum SDWebImagePhotosError {
   NotAuthorized = 10001,
 
   NotImageAsset = 10002,
+
+  InvalidLocalIdentifier = 10003,
 }
 
-declare let SDWebImagePhotosErrorDomain: string;
+declare var SDWebImagePhotosErrorDomain: string;
 
-declare let SDWebImagePhotosPixelSize: CGSize;
+declare var SDWebImagePhotosPixelSize: CGSize;
 
-declare let SDWebImagePhotosPluginVersionNumber: number;
+declare var SDWebImagePhotosPluginVersionNumber: number;
 
-declare let SDWebImagePhotosPluginVersionString: interop.Reference<number>;
+declare var SDWebImagePhotosPluginVersionString: interop.Reference<number>;
 
-declare let SDWebImagePhotosPointSize: CGSize;
+declare var SDWebImagePhotosPointSize: CGSize;
 
-declare let SDWebImagePhotosProgressExpectedSize: number;
+declare var SDWebImagePhotosProgressExpectedSize: number;
 
-declare let SDWebImagePhotosScheme: string;
+declare var SDWebImagePhotosScheme: string;

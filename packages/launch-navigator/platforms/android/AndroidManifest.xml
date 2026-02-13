@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="wuilmerj24.plugins.ns">
+    <queries>
+        <package android:name="com.google.android.apps.maps" />
+        <package android:name="com.waze" />
+        <package android:name="com.ubercab" />
+        <package android:name="com.citymapper.app.release" />
+        <package android:name="me.lyft.android" />
+        <package android:name="ru.yandex.yandexnavi" />
+        <package android:name="com.sygic.aura" />
+        <package android:name="com.here.app.maps" />
+        <package android:name="com.tranzmate" /> <package android:name="com.mapswithme.maps.pro" />
+        <package android:name="com.cabify.rider" />
+        <package android:name="com.taxis99" />
+        <package android:name="com.baidu.BaiduMap" />
+        <package android:name="com.autonavi.minimap" /> <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+    </queries>
+    <application android:hardwareAccelerated="true">
+    </application>
+</manifest>

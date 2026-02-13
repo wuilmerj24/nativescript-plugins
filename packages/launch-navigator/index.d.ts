@@ -1,46 +1,19 @@
-export const AppsSoportadas: {
-    GOOGLE_MAPS: string;
-    WAZE: string;
-    BAIDUMAP: string;
-    APPLE_MAPS: string;
-};
-
-export interface Response {
-    error: boolean;
-    errorText?: string;
+import { LaunchNavigatorCommon } from './common';
+export type TransportMode = 'driving' | 'walking' | 'bicycling' | 'transit';
+export interface LatLng {
+  lat: number;
+  lng: number;
 }
 
-// Google maps
-export const TransporteGoogleMaps: {
-    DRIVING: string;
-    WALKING: string;
-    BICYCLING: string;
-    TRANSIT: string;
-};
-
-export interface OpcionesGoogleMaps {
-    daddr: string | Array<string>;
-    saddr?: string | Array<string>;
-    modoTransporte: TransporteGoogleMaps | TransporteGoogleMaps.DRIVING;
-    tipoMapa: 'TURN_BY_TURN' | 'MAPS';
-    // avoid?: "t" | "h" | "f";
-    avoid?: string;
+export interface NavigationOptions {
+  destination: LatLng;
+  start?: LatLng; // Si es null, usa GPS actual
+  waypoints?: LatLng[]; // No todas las apps soportan esto
+  mode?: TransportMode;
+  language?: string; // e.g., 'es', 'en' (Soporte limitado por app)
 }
 
-// WAZE
-export interface OpcionesWaze {
-    destino: string | Array<string>;
-    navigate: 'yes' | 'no';
-}
+// Lista de Apps soportadas
+export type NavigationApp = 'google_maps' | 'waze' | 'citymapper' | 'uber' | 'yandex' | 'sygic' | 'here' | 'moovit' | 'lyft' | 'maps_me' | 'cabify' | '99taxi' | 'baidu' | 'gaode' | 'apple_maps';
 
-export interface OpcionesAppleMaps {
-    tipo: 's' | 'k' | 'h' | 'r';
-    saddr?: string | Array<string>;
-    daddr: string | Array<string>;
-    dirflg: 'd' | 'w' | 'r';
-}
-
-export function checkAppInstalada(packageName): boolean;
-export function openGoogleMaps(opciones: OpcionesGoogleMaps): Promise<Response>;
-export function openWaze(opciones: OpcionesWaze): Promise<Response>;
-export function openAppleMaps(opciones: OpcionesAppleMaps): Promise<Response>;
+export declare class LaunchNavigator extends LaunchNavigatorCommon {}

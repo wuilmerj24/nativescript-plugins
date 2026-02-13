@@ -1,26 +1,27 @@
-// database.nosql.ts
 import { knownFolders, File, Folder, path } from '@nativescript/core';
+
+/* ===========================
+   Interfaces
+=========================== */
+export type FieldType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'date';
+
+export type TableSchema = Record<string, FieldType>;
 
 export interface DatabaseConfig {
   name: string;
-  version: string; // Cambiar a número para mejor manejo
+  version: number;
   createdAt: string;
+  updatedAt: string;
   signature: string;
-  lastMigration?: string; // Nueva propiedad para tracking
-}
-
-export interface Migration {
-  version: string;
-  description: string;
-  up: (db: NosqlCommon) => Promise<boolean>;
-  down?: (db: NosqlCommon) => Promise<boolean>;
 }
 
 export interface TableHeader {
   name: string;
   createdAt: string;
   lastModified: string;
-  indexes: string[];
+  indexes: Record<string, string>;
+  defaults?: Record<string, any>;
+  schema?: TableSchema;
   signature: string;
 }
 
@@ -31,810 +32,570 @@ export interface QueryOptions {
   order?: 'asc' | 'desc';
 }
 
+interface TableFile {
+  header: TableHeader;
+  data: any[];
+  indexes: Record<string, Record<string, string[]>>;
+}
+
+export type MigrationFn = (db: NosqlCommon) => Promise<void>;
+
+export interface MigrationMap {
+  [version: number]: MigrationFn;
+}
+
+/* ===========================
+   Core
+=========================== */
+
 export class NosqlCommon {
-  private dbPath: string;
-  private dbConfig: DatabaseConfig;
-  private currentTable: string | null = null;
-  private migrations: Migration[] = []; // Registrar migraciones
-
-  constructor() {}
-
-  // Método para generar firma (hash simple)
-  private generateSignature(data: string): string {
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-      const char = data.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return hash.toString(16);
-  }
-
-  // Método para verificar firma de tabla
-  private verifyTableSignature(header: TableHeader): boolean {
-    const dataToVerify = `${header.name}${header.createdAt}${header.lastModified}`;
-    const expectedSignature = this.generateSignature(dataToVerify);
-    return header.signature === expectedSignature;
-  }
-
-  // Método para generar firma de tabla
-  private generateTableSignature(header: TableHeader): string {
-    const dataToSign = `${header.name}${header.createdAt}${header.lastModified}`;
-    return this.generateSignature(dataToSign);
-  }
-
-  // Verificar si es una base de datos válida
-  private async isValidDatabase(folder: Folder): Promise<boolean> {
-    try {
-      const metaFile = folder.getFile('meta.config');
-      if (await File.exists(metaFile.path)) {
-        const content = await metaFile.readText();
-        const config: DatabaseConfig = JSON.parse(content);
-
-        // Verificar firma
-        const dataToVerify = `${config.name}${config.version}${config.createdAt}`;
-        const expectedSignature = this.generateSignature(dataToVerify);
-
-        return config.signature === expectedSignature;
-      }
-      return false;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  //LIST BASE DE DATOS
-  async dbList(): Promise<string[]> {
-    try {
-      const documents = knownFolders.documents();
-      const entities = await documents.getEntities();
-
-      const databases: string[] = [];
-
-      for (const entity of entities) {
-        if (entity instanceof Folder) {
-          const folder = entity as Folder;
-
-          // Verificar si es una base de datos válida
-          if (await this.isValidDatabase(folder)) {
-            databases.push(folder.name);
-          }
-        }
-      }
-
-      return databases;
-    } catch (error) {
-      console.error('Error listing databases:', error);
-      return [];
-    }
-  }
-
-  // Registrar migraciones
-  registerMigrations(migrations: Migration[]): void {
-    this.migrations = migrations.sort((a, b) => this.compareVersions(a.version, b.version));
-  }
-
-  // Comparar versiones semánticas
-  private compareVersions(v1: string, v2: string): number {
-    const parts1 = v1.split('.').map(Number);
-    const parts2 = v2.split('.').map(Number);
-
-    for (let i = 0; i < 3; i++) {
-      if (parts1[i] > parts2[i]) return 1;
-      if (parts1[i] < parts2[i]) return -1;
-    }
-    return 0;
-  }
-
-  // Método para crear BD con versión específica
-  async createDb(dbName: string, version: string = '1.0.0'): Promise<boolean> {
-    try {
-      const documents = knownFolders.documents();
-      const dbPath = path.join(documents.path, dbName);
-
-      if (await File.exists(dbPath)) {
-        throw new Error(`Database '${dbName}' already exists`);
-      }
-
-      const dbFolder = Folder.fromPath(dbPath);
-      const now = new Date().toISOString();
-
-      const config: DatabaseConfig = {
-        name: dbName,
-        version: version,
-        createdAt: now,
-        signature: this.generateSignature(`${dbName}${version}${now}`),
-      };
-
-      const metaFile = File.fromPath(path.join(dbPath, 'meta.config'));
-      await metaFile.writeText(JSON.stringify(config, null, 2));
-
-      this.dbPath = dbPath;
-      this.dbConfig = config;
-
-      return true;
-    } catch (error) {
-      console.error('Error creating database:', error);
-      return false;
-    }
-  }
-
-  // Método para actualizar versión de BD
-  async setDbVersion(version: string): Promise<boolean> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const metaPath = path.join(this.dbPath, 'meta.config');
-      const metaFile = File.fromPath(metaPath);
-
-      if (!(await File.exists(metaPath))) {
-        throw new Error('Database configuration not found');
-      }
-
-      const content = await metaFile.readText();
-      const config: DatabaseConfig = JSON.parse(content);
-
-      // Actualizar versión
-      config.version = version;
-      config.signature = this.generateSignature(`${config.name}${version}${config.createdAt}`);
-
-      await metaFile.writeText(JSON.stringify(config, null, 2));
-      this.dbConfig = config;
-
-      return true;
-    } catch (error) {
-      console.error('Error setting database version:', error);
-      return false;
-    }
-  }
-
-  // Obtener versión actual de la BD
-  async getDbVersion(): Promise<string> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const metaPath = path.join(this.dbPath, 'meta.config');
-      if (!(await File.exists(metaPath))) {
-        throw new Error('Database configuration not found');
-      }
-
-      const metaFile = File.fromPath(metaPath);
-      const content = await metaFile.readText();
-      const config: DatabaseConfig = JSON.parse(content);
-
-      return config.version;
-    } catch (error) {
-      console.error('Error getting database version:', error);
-      return '0.0.0';
-    }
-  }
-
-  // Ejecutar migraciones
-  async migrate(targetVersion?: string): Promise<boolean> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const currentVersion = await this.getDbVersion();
-      let target = targetVersion || this.migrations[this.migrations.length - 1]?.version;
-
-      if (!target) {
-        console.log('No migrations registered or target version specified');
-        return true;
-      }
-
-      const migrationsToApply = this.migrations.filter((migration) => this.compareVersions(migration.version, currentVersion) > 0 && this.compareVersions(migration.version, target) <= 0);
-
-      for (const migration of migrationsToApply) {
-        console.log(`Applying migration: ${migration.version} - ${migration.description}`);
-
-        const success = await migration.up(this);
-        if (!success) {
-          throw new Error(`Migration ${migration.version} failed`);
-        }
-
-        // Actualizar versión de la BD
-        await this.setDbVersion(migration.version);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error during migration:', error);
-      return false;
-    }
-  }
-
-  // Revertir migración
-  async rollback(version: string): Promise<boolean> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const migration = this.migrations.find((m) => m.version === version);
-      if (!migration || !migration.down) {
-        throw new Error(`Migration ${version} not found or cannot be reverted`);
-      }
-
-      const success = await migration.down(this);
-      if (!success) {
-        throw new Error(`Rollback of migration ${version} failed`);
-      }
-
-      // Encontrar versión anterior
-      const currentIndex = this.migrations.findIndex((m) => m.version === version);
-      const previousVersion = currentIndex > 0 ? this.migrations[currentIndex - 1].version : '0.0.0';
-
-      await this.setDbVersion(previousVersion);
-
-      return true;
-    } catch (error) {
-      console.error('Error during rollback:', error);
-      return false;
-    }
-  }
-
-  // USAR BASE DE DATOS
-  async useDb(dbName: string): Promise<boolean> {
-    try {
-      const documents = knownFolders.documents();
-      const dbPath = path.join(documents.path, dbName);
-
-      if (!(await File.exists(dbPath))) {
-        throw new Error(`Database '${dbName}' does not exist`);
-      }
-
-      const dbFolder = Folder.fromPath(dbPath);
-      if (!(await this.isValidDatabase(dbFolder))) {
-        throw new Error(`'${dbName}' is not a valid database`);
-      }
-
-      this.dbPath = dbPath;
-
-      // Leer configuración
-      const metaFile = File.fromPath(path.join(dbPath, 'meta.config'));
-      const content = await metaFile.readText();
-      this.dbConfig = JSON.parse(content);
-
-      return true;
-    } catch (error) {
-      console.error('Error using database:', error);
-      return false;
-    }
-  }
-
-  // ELIMINAR BASE DE DATOS
-  async dropDb(dbName: string): Promise<boolean> {
-    try {
-      const documents = knownFolders.documents();
-      const dbPath = path.join(documents.path, dbName);
-
-      if (await File.exists(dbPath)) {
-        const dbFolder = Folder.fromPath(dbPath);
-
-        // Eliminar todos los archivos
-        try {
-          const entities = await dbFolder.getEntities();
-          for (const entity of entities) {
-            await entity.remove();
-          }
-          await dbFolder.remove();
-        } catch (error) {
-          console.log('Error removing folder, might already be empty:', error);
-        }
-
-        this.dbPath = null;
-        this.dbConfig = null;
-        this.currentTable = null;
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error dropping database:', error);
-      return false;
-    }
-  }
-
-  // CREAR TABLA
-  async createTable(tableName: string): Promise<boolean> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${tableName}.nosql`);
-
-      if (await File.exists(tablePath)) {
-        throw new Error(`Table '${tableName}' already exists`);
-      }
-
-      const now = new Date().toISOString();
-      const header: TableHeader = {
-        name: tableName,
-        createdAt: now,
-        lastModified: now,
-        indexes: [],
-        signature: '',
-      };
-
-      // Generar firma
-      header.signature = this.generateTableSignature(header);
-
-      const tableData = {
-        header,
-        data: [],
-        indexes: {},
-      };
-
-      const tableFile = File.fromPath(tablePath);
-      await tableFile.writeText(JSON.stringify(tableData, null, 2));
-      return true;
-    } catch (error) {
-      console.error('Error creating table:', error);
-      return false;
-    }
-  }
-
-  // USAR TABLA
-  async table(tableName: string): Promise<NosqlCommon> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${tableName}.nosql`);
-
-      if (!(await File.exists(tablePath))) {
-        throw new Error(`Table '${tableName}' does not exist`);
-      }
-
-      this.currentTable = tableName;
-      return this;
-    } catch (error) {
-      console.error('Error selecting table:', error);
-      throw error;
-    }
-  }
-
-  // ELIMINAR TABLA
-  async tableDrop(tableName: string): Promise<boolean> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${tableName}.nosql`);
-
-      if (await File.exists(tablePath)) {
-        const tableFile = File.fromPath(tablePath);
-        await tableFile.remove();
-
-        if (this.currentTable === tableName) {
-          this.currentTable = null;
-        }
-
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error dropping table:', error);
-      return false;
-    }
-  }
-
-  // LISTAR TABLAS
-  async tableList(): Promise<string[]> {
-    if (!this.dbPath) {
-      throw new Error('No database selected');
-    }
-
-    try {
-      const dbFolder = Folder.fromPath(this.dbPath);
-      const entities = await dbFolder.getEntities();
-
-      const tables: string[] = [];
-      for (const entity of entities) {
-        if (entity.name.endsWith('.nosql')) {
-          tables.push(entity.name.replace('.nosql', ''));
-        }
-      }
-      return tables;
-    } catch (error) {
-      console.error('Error listing tables:', error);
-      return [];
-    }
-  }
-
-  // CREAR ÍNDICE
-  async tableIndex(indexName: string, field: string): Promise<boolean> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-        // No lanzar error, solo log warning
-      }
-
-      // Agregar índice al header
-      if (!tableData.header.indexes.includes(indexName)) {
-        tableData.header.indexes.push(indexName);
-      }
-
-      // Crear índice
-      tableData.indexes[indexName] = {};
-      for (const item of tableData.data) {
-        if (item[field] !== undefined) {
-          if (!tableData.indexes[indexName][item[field]]) {
-            tableData.indexes[indexName][item[field]] = [];
-          }
-          tableData.indexes[indexName][item[field]].push(item.id);
-        }
-      }
-
-      // Actualizar timestamp y firma
-      tableData.header.lastModified = new Date().toISOString();
-      tableData.header.signature = this.generateTableSignature(tableData.header);
-
-      await tableFile.writeText(JSON.stringify(tableData, null, 2));
-      return true;
-    } catch (error) {
-      console.error('Error creating index:', error);
-      return false;
-    }
-  }
-
-  // INSERTAR DATOS
-  async insert(data: any): Promise<string> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma (pero no fallar si hay mismatch)
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-      }
-
-      // Generar ID único
-      const id = this.generateUUID();
-      const document = {
-        id,
-        ...data,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Insertar datos
-      tableData.data.push(document);
-
-      // Actualizar índices
-      for (const indexName of tableData.header.indexes) {
-        for (const field in document) {
-          if (document.hasOwnProperty(field)) {
-            if (!tableData.indexes[indexName]) {
-              tableData.indexes[indexName] = {};
-            }
-            if (!tableData.indexes[indexName][document[field]]) {
-              tableData.indexes[indexName][document[field]] = [];
-            }
-            tableData.indexes[indexName][document[field]].push(id);
-          }
-        }
-      }
-
-      // Actualizar timestamp y firma
-      tableData.header.lastModified = new Date().toISOString();
-      tableData.header.signature = this.generateTableSignature(tableData.header);
-
-      await tableFile.writeText(JSON.stringify(tableData, null, 2));
-      return id;
-    } catch (error) {
-      console.error('Error inserting data:', error);
-      throw error;
-    }
-  }
-
-  // ACTUALIZAR DATOS
-  async update(id: string, updates: any): Promise<boolean>;
-  async update(updates: any): Promise<boolean>;
-  async update(arg1: any, arg2?: any): Promise<boolean> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma (pero no fallar)
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-      }
-
-      let updated = false;
-
-      if (typeof arg1 === 'string') {
-        // Update por ID
-        const updateId = arg1;
-        const updateData = arg2;
-
-        const index = tableData.data.findIndex((item) => item.id === updateId);
-        if (index !== -1) {
-          tableData.data[index] = {
-            ...tableData.data[index],
-            ...updateData,
-            updatedAt: new Date().toISOString(),
-          };
-          updated = true;
-        }
-      } else {
-        // Update masivo
-        const updateData = arg1;
-        tableData.data = tableData.data.map((item) => ({
-          ...item,
-          ...updateData,
-          updatedAt: new Date().toISOString(),
-        }));
-        updated = true;
-      }
-
-      if (updated) {
-        // Reconstruir índices
-        tableData.indexes = {};
-        for (const indexName of tableData.header.indexes) {
-          tableData.indexes[indexName] = {};
-          for (const item of tableData.data) {
-            for (const field in item) {
-              if (item.hasOwnProperty(field)) {
-                if (!tableData.indexes[indexName][item[field]]) {
-                  tableData.indexes[indexName][item[field]] = [];
-                }
-                tableData.indexes[indexName][item[field]].push(item.id);
-              }
-            }
-          }
-        }
-
-        // Actualizar timestamp y firma
-        tableData.header.lastModified = new Date().toISOString();
-        tableData.header.signature = this.generateTableSignature(tableData.header);
-
-        await tableFile.writeText(JSON.stringify(tableData, null, 2));
-      }
-
-      return updated;
-    } catch (error) {
-      console.error('Error updating data:', error);
-      return false;
-    }
-  }
-
-  // ELIMINAR DATOS
-  async delete(id?: string): Promise<boolean> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma (pero no fallar)
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-      }
-
-      let deleted = false;
-
-      if (id) {
-        // Eliminar por ID
-        const index = tableData.data.findIndex((item) => item.id === id);
-        if (index !== -1) {
-          tableData.data.splice(index, 1);
-          deleted = true;
-        }
-      } else {
-        // Eliminar todos
-        tableData.data = [];
-        deleted = true;
-      }
-
-      if (deleted) {
-        // Reconstruir índices
-        tableData.indexes = {};
-        for (const indexName of tableData.header.indexes) {
-          tableData.indexes[indexName] = {};
-          for (const item of tableData.data) {
-            for (const field in item) {
-              if (item.hasOwnProperty(field)) {
-                if (!tableData.indexes[indexName][item[field]]) {
-                  tableData.indexes[indexName][item[field]] = [];
-                }
-                tableData.indexes[indexName][item[field]].push(item.id);
-              }
-            }
-          }
-        }
-
-        // Actualizar timestamp y firma
-        tableData.header.lastModified = new Date().toISOString();
-        tableData.header.signature = this.generateTableSignature(tableData.header);
-
-        await tableFile.writeText(JSON.stringify(tableData, null, 2));
-      }
-
-      return deleted;
-    } catch (error) {
-      console.error('Error deleting data:', error);
-      return false;
-    }
-  }
-
-  // FILTRAR DATOS
-  async filter(criteria: any, options?: QueryOptions): Promise<any[]> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma (pero no fallar)
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-      }
-
-      let results = tableData.data.filter((item) => {
-        for (const key in criteria) {
-          if (criteria.hasOwnProperty(key)) {
-            if (item[key] !== criteria[key]) {
-              return false;
-            }
-          }
-        }
-        return true;
-      });
-
-      // Aplicar opciones
-      if (options) {
-        if (options.orderBy) {
-          results.sort((a, b) => {
-            const aVal = a[options.orderBy];
-            const bVal = b[options.orderBy];
-            if (options.order === 'desc') {
-              return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-            }
-            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-          });
-        }
-
-        if (options.offset) {
-          results = results.slice(options.offset);
-        }
-
-        if (options.limit) {
-          results = results.slice(0, options.limit);
-        }
-      }
-
-      return results;
-    } catch (error) {
-      console.error('Error filtering data:', error);
-      return [];
-    }
-  }
-
-  // OBTENER POR ID
-  async get(id: string): Promise<any> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma (pero no fallar)
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-      }
-
-      return tableData.data.find((item) => item.id === id) || null;
-    } catch (error) {
-      console.error('Error getting data:', error);
-      return null;
-    }
-  }
-
-  // OBTENER MÚLTIPLES POR ID
-  async getAll(ids: string[]): Promise<any[]> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma (pero no fallar)
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-      }
-
-      return tableData.data.filter((item) => ids.includes(item.id));
-    } catch (error) {
-      console.error('Error getting multiple data:', error);
-      return [];
-    }
-  }
-
-  // OBTENER TODOS LOS DATOS
-  async getAllData(): Promise<any[]> {
-    if (!this.dbPath || !this.currentTable) {
-      throw new Error('No table selected');
-    }
-
-    try {
-      const tablePath = path.join(this.dbPath, `${this.currentTable}.nosql`);
-      const tableFile = File.fromPath(tablePath);
-
-      const content = await tableFile.readText();
-      const tableData = JSON.parse(content);
-
-      // Verificar firma (pero no fallar)
-      if (!this.verifyTableSignature(tableData.header)) {
-        console.warn('Table signature mismatch, but continuing operation');
-      }
-
-      return tableData.data;
-    } catch (error) {
-      console.error('Error getting all data:', error);
-      return [];
-    }
-  }
-
-  // Generar UUID simple
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+  protected dbPath!: string;
+  protected currentTable!: string;
+  protected dbConfig!: DatabaseConfig;
+  protected readonly DB_META_FILE = 'db.meta.json';
+  protected tableCache = new Map<string, TableFile>();
+  protected dirtyTables = new Set<string>();
+  protected migrationsRunning = false;
+  /* ===========================
+       Utils
+    =========================== */
+
+  protected generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = (Math.random() * 16) | 0;
       const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
+  }
+
+  protected async loadTable(name: string): Promise<TableFile> {
+    if (this.tableCache.has(name)) {
+      return this.tableCache.get(name)!;
+    }
+
+    const tablePath = path.join(this.dbPath, `${name}.nosql`);
+    const content = await File.fromPath(tablePath).readText();
+    const parsed = JSON.parse(content) as TableFile;
+
+    this.tableCache.set(name, parsed);
+    return parsed;
+  }
+
+  protected async persistTable(name: string): Promise<void> {
+    if (!this.dirtyTables.has(name)) return;
+
+    const table = this.tableCache.get(name);
+    if (!table) return;
+
+    table.header.lastModified = new Date().toISOString();
+    table.header.signature = this.generateUUID();
+
+    const tablePath = path.join(this.dbPath, `${name}.nosql`);
+    await this.writeAtomic(tablePath, JSON.stringify(table));
+    //await File.fromPath(tablePath).writeText(JSON.stringify(table));
+
+    this.dirtyTables.delete(name);
+  }
+
+  protected markDirty(name: string): void {
+    this.dirtyTables.add(name);
+  }
+
+  /* ===========================
+       MIGRATIONS
+    =========================== */
+  protected getSnapshotDir(): string {
+    return path.join(this.dbPath, '_snapshots');
+  }
+
+  protected async createSnapshot(version: number): Promise<void> {
+    const snapDir = this.getSnapshotDir();
+    Folder.fromPath(snapDir);
+
+    const snapshot: any = {
+      meta: this.dbConfig,
+      tables: {},
+    };
+
+    const tables = await this.tableList();
+    for (const table of tables) {
+      const file = path.join(this.dbPath, `${table}.nosql`);
+      snapshot.tables[table] = await File.fromPath(file).readText();
+    }
+
+    const snapPath = path.join(snapDir, `snapshot_v${version}.json`);
+    await this.writeAtomic(snapPath, JSON.stringify(snapshot));
+  }
+
+  protected async restoreSnapshot(version: number): Promise<void> {
+    const snapPath = path.join(this.getSnapshotDir(), `snapshot_v${version}.json`);
+
+    if (!(await File.exists(snapPath))) {
+      throw new Error('Snapshot not found');
+    }
+
+    const snapshot = JSON.parse(await File.fromPath(snapPath).readText());
+
+    // Restore meta
+    this.dbConfig = snapshot.meta;
+    await this.writeAtomic(path.join(this.dbPath, this.DB_META_FILE), JSON.stringify(snapshot.meta));
+
+    // Restore tables
+    for (const [name, content] of Object.entries(snapshot.tables)) {
+      const tablePath = path.join(this.dbPath, `${name}.nosql`);
+      await this.writeAtomic(tablePath, content as string);
+    }
+
+    this.tableCache.clear();
+    this.dirtyTables.clear();
+  }
+
+  async migrate(migrations: MigrationMap): Promise<void> {
+    if (this.migrationsRunning) {
+      throw new Error('Migration already running');
+    }
+
+    this.migrationsRunning = true;
+
+    const initialVersion = this.getDbVersion();
+
+    try {
+      const versions = Object.keys(migrations)
+        .map(Number)
+        .filter((v) => v > initialVersion)
+        .sort((a, b) => a - b);
+
+      if (versions.length > 0) {
+        await this.createSnapshot(initialVersion);
+      }
+
+      for (const version of versions) {
+        console.log(`[DB MIGRATION] Applying v${version}`);
+        await migrations[version](this);
+
+        this.tableCache.clear();
+        this.dirtyTables.clear();
+
+        await this.setDbVersion(version);
+        console.log(`[DB MIGRATION] v${version} applied`);
+      }
+    } catch (err) {
+      console.error('[DB MIGRATION] Failed, restoring snapshot');
+      await this.restoreSnapshot(initialVersion);
+      throw err;
+    } finally {
+      this.migrationsRunning = false;
+    }
+  }
+
+  protected validateValue(type: FieldType, value: any): boolean {
+    if (value === null || value === undefined) return true;
+
+    switch (type) {
+      case 'string':
+        return typeof value === 'string';
+      case 'number':
+        return typeof value === 'number';
+      case 'boolean':
+        return typeof value === 'boolean';
+      case 'object':
+        return typeof value === 'object' && !Array.isArray(value);
+      case 'array':
+        return Array.isArray(value);
+      case 'date':
+        return !isNaN(Date.parse(value));
+      default:
+        return false;
+    }
+  }
+
+  protected validateSchema(schema: TableSchema, data: any): void {
+    for (const [field, type] of Object.entries(schema)) {
+      if (!this.validateValue(type, data[field])) {
+        throw new Error(`Schema validation failed: field "${field}" expected ${type}`);
+      }
+    }
+  }
+
+  async defineTableSchema(tableName: string, schema: TableSchema): Promise<void> {
+    const table = await this.loadTable(tableName);
+    table.header.schema = schema;
+    this.markDirty(tableName);
+    await this.persistTable(tableName);
+  }
+
+  /* ===========================
+       Migration helpers
+    =========================== */
+  protected async writeAtomic(filePath: string, content: string): Promise<void> {
+    const file = File.fromPath(filePath);
+
+    // Escribir directamente (NativeScript es síncrono a nivel FS)
+    await file.writeText(content);
+
+    // Verificación defensiva
+    const verify = await file.readText();
+    if (!verify || !verify.trim()) {
+      throw new Error(`Atomic write failed for ${filePath}`);
+    }
+  }
+
+  async createTableIfNotExists(name: string): Promise<boolean> {
+    const tablePath = path.join(this.dbPath, `${name}.nosql`);
+    if (await File.exists(tablePath)) return false;
+    return this.createTable(name);
+  }
+
+  async addFieldToTable(tableName: string, field: string, defaultValue: any): Promise<void> {
+    const table = await this.loadTable(tableName);
+
+    table.header.defaults ??= {};
+    table.header.defaults[field] = defaultValue;
+
+    for (const row of table.data) {
+      if (!(field in row)) {
+        row[field] = defaultValue;
+        row.updatedAt = new Date().toISOString();
+      }
+    }
+
+    this.markDirty(tableName);
+    await this.persistTable(tableName);
+  }
+
+  async renameField(tableName: string, from: string, to: string): Promise<void> {
+    const table = await this.loadTable(tableName);
+
+    for (const row of table.data) {
+      if (from in row) {
+        row[to] = row[from];
+        delete row[from];
+        row.updatedAt = new Date().toISOString();
+      }
+    }
+
+    this.markDirty(tableName);
+    await this.persistTable(tableName);
+  }
+
+  /* ===========================
+       Database
+    =========================== */
+
+  async createDb(name: string, version: number = 1): Promise<boolean> {
+    const base = knownFolders.documents().path;
+    const dbPath = path.join(base, name);
+
+    if (await File.exists(dbPath)) {
+      throw new Error('Database already exists');
+    }
+
+    Folder.fromPath(dbPath);
+
+    const now = new Date().toISOString();
+
+    const config: DatabaseConfig = {
+      name,
+      version,
+      createdAt: now,
+      updatedAt: now,
+      signature: this.generateUUID(),
+    };
+
+    const metaPath = path.join(dbPath, this.DB_META_FILE);
+    await this.writeAtomic(metaPath, JSON.stringify(config));
+
+    //await File.fromPath(metaPath).writeText(JSON.stringify(config));
+
+    this.dbPath = dbPath;
+    this.dbConfig = config;
+
+    return true;
+  }
+
+  async useDb(name: string, migrations?: MigrationMap, targetVersion?: number): Promise<boolean> {
+    const base = knownFolders.documents().path;
+    const dbPath = path.join(base, name);
+
+    if (!(await File.exists(dbPath))) {
+      throw new Error('Database not found');
+    }
+
+    const metaPath = path.join(dbPath, this.DB_META_FILE);
+    if (!(await File.exists(metaPath))) {
+      throw new Error('Database metadata not found');
+    }
+
+    const content = await File.fromPath(metaPath).readText();
+
+    if (!content || !content.trim()) {
+      throw new Error('Database metadata is corrupted or empty. Delete the database and recreate it.');
+    }
+    this.dbConfig = JSON.parse(content) as DatabaseConfig;
+
+    this.dbPath = dbPath;
+    this.tableCache.clear();
+    this.dirtyTables.clear();
+    // ✅ Ejecutar migraciones automáticamente
+    if (migrations) {
+      await this.migrate(migrations);
+    }
+
+    // ✅ Validar versión final
+    if (targetVersion !== undefined) {
+      this.assertDbVersion(targetVersion);
+    }
+
+    return true;
+  }
+
+  getDbVersion(): number {
+    if (!this.dbConfig) {
+      throw new Error('No database selected');
+    }
+    return this.dbConfig.version;
+  }
+
+  async setDbVersion(version: number): Promise<boolean> {
+    if (!this.dbConfig) {
+      throw new Error('No database selected');
+    }
+
+    this.dbConfig.version = version;
+    this.dbConfig.updatedAt = new Date().toISOString();
+    this.dbConfig.signature = this.generateUUID();
+
+    const metaPath = path.join(this.dbPath, this.DB_META_FILE);
+    await this.writeAtomic(metaPath, JSON.stringify(this.dbConfig));
+    //await File.fromPath(metaPath).writeText(JSON.stringify(this.dbConfig));
+
+    return true;
+  }
+
+  assertDbVersion(minVersion: number): void {
+    if (!this.dbConfig) {
+      throw new Error('No database selected');
+    }
+
+    if (this.dbConfig.version < minVersion) {
+      throw new Error(`Database version ${this.dbConfig.version} is lower than required ${minVersion}`);
+    }
+  }
+
+  async dropDb(name: string): Promise<boolean> {
+    const base = knownFolders.documents().path;
+    const dbPath = path.join(base, name);
+
+    if (!(await File.exists(dbPath))) return false;
+
+    await Folder.fromPath(dbPath).remove();
+    this.tableCache.clear();
+    this.dirtyTables.clear();
+    return true;
+  }
+
+  async dbList(): Promise<string[]> {
+    const base = knownFolders.documents();
+    return (await base.getEntities()).filter((e) => e instanceof Folder).map((e) => e.name);
+  }
+
+  /* ===========================
+       Tables
+    =========================== */
+
+  async createTable(name: string): Promise<boolean> {
+    const tablePath = path.join(this.dbPath, `${name}.nosql`);
+    if (await File.exists(tablePath)) {
+      throw new Error('Table exists');
+    }
+
+    const now = new Date().toISOString();
+    const table: TableFile = {
+      header: {
+        name,
+        createdAt: now,
+        lastModified: now,
+        indexes: {},
+        defaults: {},
+        signature: this.generateUUID(),
+      },
+      data: [],
+      indexes: {},
+    };
+
+    await this.writeAtomic(tablePath, JSON.stringify(table));
+
+    //await File.fromPath(tablePath).writeText(JSON.stringify(table));
+    return true;
+  }
+
+  async table(name: string): Promise<this> {
+    this.currentTable = name;
+    await this.loadTable(name);
+    return this;
+  }
+
+  async tableList(): Promise<string[]> {
+    const dir = Folder.fromPath(this.dbPath);
+    return (await dir.getEntities()).filter((e) => e instanceof File && e.name.endsWith('.nosql')).map((e) => e.name.replace('.nosql', ''));
+  }
+
+  async tableDrop(name: string): Promise<boolean> {
+    const tablePath = path.join(this.dbPath, `${name}.nosql`);
+    if (!(await File.exists(tablePath))) return false;
+
+    await File.fromPath(tablePath).remove();
+    this.tableCache.delete(name);
+    this.dirtyTables.delete(name);
+    return true;
+  }
+
+  /* ===========================
+       Indexes
+    =========================== */
+
+  async tableIndex(indexName: string, field: string): Promise<boolean> {
+    const table = await this.loadTable(this.currentTable);
+
+    table.header.indexes[indexName] = field;
+    table.indexes[indexName] = {};
+
+    for (const row of table.data) {
+      const key = row[field];
+      if (key === undefined) continue;
+      table.indexes[indexName][key] ??= [];
+      table.indexes[indexName][key].push(row.id);
+    }
+
+    this.markDirty(this.currentTable);
+    await this.persistTable(this.currentTable);
+    return true;
+  }
+
+  /* ===========================
+       CRUD
+    =========================== */
+
+  async insert(data: any): Promise<string> {
+    const table = await this.loadTable(this.currentTable);
+    const defaults = table.header.defaults ?? {};
+    const doc = {
+      id: this.generateUUID(),
+      ...defaults,
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (table.header.schema) {
+      this.validateSchema(table.header.schema, doc);
+    }
+
+    table.data.push(doc);
+
+    for (const [index, field] of Object.entries(table.header.indexes)) {
+      const key = doc[field];
+      if (key === undefined) continue;
+      table.indexes[index][key] ??= [];
+      table.indexes[index][key].push(doc.id);
+    }
+
+    this.markDirty(this.currentTable);
+    await this.persistTable(this.currentTable);
+    return doc.id;
+  }
+
+  async get(id: string): Promise<any | null> {
+    const table = await this.loadTable(this.currentTable);
+    return table.data.find((r) => r.id === id) ?? null;
+  }
+
+  async getAll(ids?: string[]): Promise<any[]> {
+    const table = await this.loadTable(this.currentTable);
+    if (!ids) return [...table.data];
+    return table.data.filter((r) => ids.includes(r.id));
+  }
+
+  async update(id: string, changes: any): Promise<boolean> {
+    const table = await this.loadTable(this.currentTable);
+    const row = table.data.find((r) => r.id === id);
+    if (!row) return false;
+
+    const updated = { ...row, ...changes };
+
+    if (table.header.schema) {
+      this.validateSchema(table.header.schema, updated);
+    }
+
+    Object.assign(row, changes, { updatedAt: new Date().toISOString() });
+
+    this.markDirty(this.currentTable);
+    await this.persistTable(this.currentTable);
+    return true;
+  }
+
+  async delete(id?: string): Promise<boolean> {
+    const table = await this.loadTable(this.currentTable);
+
+    if (!id) {
+      table.data = [];
+      table.indexes = {};
+      this.markDirty(this.currentTable);
+      await this.persistTable(this.currentTable);
+      return true;
+    }
+
+    const idx = table.data.findIndex((r) => r.id === id);
+    if (idx === -1) return false;
+
+    const removed = table.data.splice(idx, 1)[0];
+
+    for (const [index, field] of Object.entries(table.header.indexes)) {
+      const key = removed[field];
+      if (key !== undefined) {
+        table.indexes[index][key] = table.indexes[index][key]?.filter((x) => x !== id) ?? [];
+      }
+    }
+
+    this.markDirty(this.currentTable);
+    await this.persistTable(this.currentTable);
+    return true;
+  }
+
+  /* ===========================
+       Filter
+    =========================== */
+
+  async filter(criteria: any, options?: QueryOptions): Promise<any[]> {
+    const table = await this.loadTable(this.currentTable);
+
+    const matches = (row: any): boolean => {
+      return Object.entries(criteria).every(([field, cond]) => {
+        const value = row[field];
+
+        if (typeof cond !== 'object') {
+          return value === cond;
+        }
+
+        if ('$gt' in cond) return value > cond.$gt;
+        if ('$lt' in cond) return value < cond.$lt;
+        if ('$eq' in cond) return value === cond.$eq;
+        if ('$ne' in cond) return value !== cond.$ne;
+        if ('$in' in cond) return cond.$in.includes(value);
+
+        return false;
+      });
+    };
+
+    let result = table.data.filter(matches);
+
+    if (options?.orderBy) {
+      result.sort((a, b) => (options.order === 'desc' ? b[options.orderBy] - a[options.orderBy] : a[options.orderBy] - b[options.orderBy]));
+    }
+
+    if (options?.offset) result = result.slice(options.offset);
+    if (options?.limit) result = result.slice(0, options.limit);
+
+    return result;
   }
 }

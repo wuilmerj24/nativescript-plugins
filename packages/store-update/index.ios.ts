@@ -1,214 +1,168 @@
-import { ActivityIndicator, Application, Button, Color, confirm, getCurrentPage, GridLayout, Http, HttpResponse, Label, ModalTransition, Screen, ShowModalOptions, StackLayout, TapGestureEventData, Utils } from '@nativescript/core';
+import { Application, Utils } from '@nativescript/core';
 import { StoreUpdateCommon } from './common';
+import { UpdateOptions } from './';
+import { TapHandler } from './class/handler.ios';
 
 export class StoreUpdate extends StoreUpdateCommon {
-    getAppId(): string {
-        try {
-            const version = NSBundle.mainBundle.bundleIdentifier
-            return version;
-        } catch (error) {
-            console.error(error);
-        }
+  private forceVC: UIViewController | null = null;
+
+  constructor(options: UpdateOptions) {
+    super(options);
+    Application.on(Application.resumeEvent, () => {
+      this.ensureForceScreenVisible();
+    });
+  }
+
+  private getLocalVersion(): string {
+    return NSBundle.mainBundle.objectForInfoDictionaryKey('CFBundleShortVersionString') as string;
+  }
+
+  private getBundleId(): string {
+    return NSBundle.mainBundle.bundleIdentifier;
+  }
+
+  async checkUpdate() {
+    const bundleId = this.getBundleId();
+    const localVersion = this.getLocalVersion();
+
+    const storeInfo = await this.getAppStoreInfo(bundleId);
+
+    const storeVersion = storeInfo.version;
+    // const needsUpdate = this.isNewerVersion(storeVersion, localVersion);
+    const needsUpdate = this.isDebugForceUpdate() || this.isNewerVersion(storeVersion, localVersion);
+
+    if (needsUpdate) {
+      if (this.options.forceUpdate) {
+        this.showForceUpdateScreen(storeInfo.trackViewUrl);
+      } else {
+        this.showOptionalDialog(storeInfo.trackViewUrl);
+      }
     }
 
-    getLocalVersion(): string {
-        try {
-            let infoDictionary = NSBundle.mainBundle.infoDictionary;
-            let versionName = infoDictionary.objectForKey('CFBundleShortVersionString');
-            return versionName;
-        } catch (error) {
-            console.error(error);
-        }
-    }
-    getNubeVersion(country?: string): Promise<string> {
-        const bundleId = this.getAppId(); // O el de tu package.json
-        return new Promise(async (rs, rj) => {
-            const url: string = `https://itunes.apple.com/lookup?bundleId=${bundleId}&country=${country}`;
-            await Http.request({
-                url: url,
-                method: 'GET',
-            })
-                .then((response:HttpResponse) => {
-                    console.log(response);
-                    const statusCode = response.statusCode;
-                    if (statusCode === 200) {
-                        let version = '';
-                        const data = response.content.toJSON();
-                        version = data.results[0].version;
-                        rs(version);
-                    }
-                    rj(null);
-                })
-                .catch((err) => {
-                    rj(err);
-                })
-                .finally(() => {
-                    rj(null);
-                });
-        });
-    }
-    
-    updateApp(forceUpdate: boolean, okTextButton?: string, cancelTextButton?: string, message?: string, openAppStore?: boolean, bgColor?: string, textColor?: string, bgBtnColor?: string, textbtnColor?: string) {
-        const modalLoading: ModalLoading = new ModalLoading();
-        getCurrentPage().showModal(modalLoading, {
-            closeCallback(...args) { },
-            context: null,
-            animated: true,
-            cancelable: false,
-            fullscreen: false,
-            stretched: false,
-            ios:{
-                presentationStyle:UIModalPresentationStyle.Popover,
-            }
-        } as ShowModalOptions);
-        return new Promise(async (rs, rj) => {
-            const version_nube: string = await this.getNubeVersion();
-            const version_local: string = this.getLocalVersion();
-            const comparison = this.compareVersions(version_nube, version_local);
-            if (comparison > 0) {
-                modalLoading.closeModal();
-                if (forceUpdate) {
-                    const modal: ModalUpdateIos = new ModalUpdateIos(message, okTextButton, this.getAppId(), openAppStore, bgColor, textColor, bgBtnColor, textbtnColor);
-                    Application.ios.on(Application.iOSApplication.resumeEvent, async (args) => {
-                        const version_nube: string = await this.getNubeVersion();
-                        const version_local: string = this.getLocalVersion();
-                        const comparison = this.compareVersions(version_nube, version_local);
-                        if (comparison <= 0) {
-                            modal.closeModal();
-                            Application.ios.off(Application.iOSApplication.resumeEvent);
-                            Application.ios.off(Application.iOSApplication.backgroundEvent);
-                        }
-                        console.log('activityResumed');
-                    });
+    const data = {
+      localVersion,
+      storeVersion,
+      bundleId,
+      minimumVersion: storeInfo.minimumOsVersion,
+      needsUpdate,
+    };
+    return data;
+  }
 
-                    Application.ios.on(Application.iOSApplication.backgroundEvent, (args) => {
-                        console.log('activityPaused');
-                    });
+  private getAppStoreInfo(bundleId: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const url = NSURL.URLWithString(`https://itunes.apple.com/lookup?bundleId=${bundleId}`);
 
-                    Utils.setTimeout(()=>{
-                        getCurrentPage().showModal(modal, {
-                            closeCallback(...args) { },
-                            context: null,
-                            animated: true,
-                            cancelable: false,
-                            fullscreen: true,
-                            stretched: true,
-                            ios: {
-                                presentationStyle: UIModalPresentationStyle.FormSheet,
-                            }
-                        } as ShowModalOptions);
-                    },1500)
-                } else {
-                    confirm({
-                        cancelable: true,
-                        cancelButtonText: cancelTextButton,
-                        message: message,
-                        neutralButtonText: ' ',
-                        okButtonText: okTextButton,
-                    }).then((res) => {
-                        if (res) {
-                            this.openiOSStore(NSBundle.mainBundle.bundleIdentifier);
-                        }
-                    });
-                }
-            }
-            modalLoading.closeModal();
-        });
-    }
-
-    compareVersions(version1: string, version2: string): number {
-        const v1Parts = version1.split('.').map(Number);
-        const v2Parts = version2.split('.').map(Number);
-
-        for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
-            const v1 = v1Parts[i] || 0;
-            const v2 = v2Parts[i] || 0;
-
-            if (v1 > v2) {
-                return 1;
-            } else if (v1 < v2) {
-                return -1;
-            }
+      const task = NSURLSession.sharedSession.dataTaskWithURLCompletionHandler(url, (data, response, error) => {
+        if (error) {
+          reject(error);
+          return;
         }
 
-        return 0;
+        const json = JSON.parse(NSString.alloc().initWithDataEncoding(data, NSUTF8StringEncoding).toString());
+
+        resolve(json.results[0]);
+      });
+
+      task.resume();
+    });
+  }
+
+  private isNewerVersion(store: string, local: string): boolean {
+    const s = store.split('.').map(Number);
+    const l = local.split('.').map(Number);
+
+    for (let i = 0; i < Math.max(s.length, l.length); i++) {
+      const sv = s[i] || 0;
+      const lv = l[i] || 0;
+      if (sv > lv) return true;
+      if (sv < lv) return false;
+    }
+    return false;
+  }
+
+  private tapHandler: TapHandler;
+
+  private showForceUpdateScreen(storeUrl: string) {
+    if (this.forceVC) {
+      return;
     }
 
-    openiOSStore(id: string) {
-        const url: string = `itms-apps://itunes.apple.com/app/id${this.getAppId()}`;
-        Utils.openUrl(url);
+    const vc = UIViewController.new();
+    this.forceVC = vc;
+    // vc.view.backgroundColor = UIColor.blueColor;
+    vc.view.backgroundColor = this.color(this.options.screenBackgroundColor) || UIColor.whiteColor;
+
+    // 🔒 BLOQUEO TOTAL
+    vc.modalPresentationStyle = UIModalPresentationStyle.FullScreen;
+    vc.modalTransitionStyle = UIModalTransitionStyle.CrossDissolve;
+    vc.modalInPresentation = true; // iOS 13+
+
+    const screenWidth = UIScreen.mainScreen.bounds.size.width;
+    const screenHeight = UIScreen.mainScreen.bounds.size.height;
+
+    const label = UILabel.new();
+    label.text = this.options.message;
+    label.textColor = this.color(this.options.messageColor);
+    label.textAlignment = NSTextAlignment.Center;
+    label.numberOfLines = 0;
+    label.frame = CGRectMake(20, screenHeight / 2 - 120, screenWidth - 40, 100);
+
+    const button = UIButton.buttonWithType(UIButtonType.System);
+    button.setTitleForState(this.options.titleButton, UIControlState.Normal);
+    button.backgroundColor = this.color(this.options.buttonColor);
+    button.setTitleColorForState(this.color(this.options.titleButtonColor), UIControlState.Normal);
+    button.frame = CGRectMake(40, screenHeight / 2 + 20, screenWidth - 80, 50);
+    button.layer.cornerRadius = 10;
+    this.tapHandler = TapHandler.initWithCallback((recognizer: UITapGestureRecognizer) => {
+      Utils.openUrl(storeUrl);
+    });
+    const tapGesture = UITapGestureRecognizer.alloc().initWithTargetAction(this.tapHandler, 'handleTap');
+
+    tapGesture.numberOfTapsRequired = 1;
+
+    button.addGestureRecognizer(tapGesture);
+
+    vc.view.addSubview(label);
+    vc.view.addSubview(button);
+
+    const root = UIApplication.sharedApplication.keyWindow.rootViewController;
+    root.presentViewControllerAnimatedCompletion(vc, false, null);
+  }
+
+  private showOptionalDialog(storeUrl: string) {
+    const alert = UIAlertController.alertControllerWithTitleMessagePreferredStyle(null, this.options.message, UIAlertControllerStyle.Alert);
+
+    alert.addAction(UIAlertAction.actionWithTitleStyleHandler(this.options.titleButton, UIAlertActionStyle.Default, () => Utils.openUrl(storeUrl)));
+
+    alert.addAction(UIAlertAction.actionWithTitleStyleHandler('Close', UIAlertActionStyle.Cancel, null));
+
+    UIApplication.sharedApplication.keyWindow.rootViewController.presentViewControllerAnimatedCompletion(alert, true, null);
+  }
+
+  private color(hex?: string): UIColor | null {
+    if (!hex) return null;
+
+    const c = hex.replace('#', '');
+
+    if (c.length !== 6) return null;
+
+    const rgb = parseInt(c, 16);
+
+    return UIColor.colorWithRedGreenBlueAlpha(((rgb >> 16) & 255) / 255, ((rgb >> 8) & 255) / 255, (rgb & 255) / 255, 1);
+  }
+
+  private ensureForceScreenVisible() {
+    if (!this.forceVC) return;
+
+    const root = UIApplication.sharedApplication.keyWindow.rootViewController;
+
+    if (!root.presentedViewController) {
+      root.presentViewControllerAnimatedCompletion(this.forceVC, false, null);
     }
+  }
 
-    checkUpdateNative(): Promise<boolean> {
-        throw new Error('Only for android');
-    }
-}
-
-
-class ModalLoading extends StackLayout {
-    constructor() {
-        super();
-        const loading: ActivityIndicator = new ActivityIndicator();
-        loading.busy = true;
-        loading.color = new Color('#FFFFFF');
-        (loading.verticalAlignment = 'middle'), (loading.horizontalAlignment = 'center');
-        loading.width = (Screen.mainScreen.widthDIPs * 15) / 100;
-        loading.height = (Screen.mainScreen.heightDIPs * 15) / 100;
-        this.backgroundColor = new Color('#000000');
-        this.width = (Screen.mainScreen.widthDIPs * 15) / 100;
-        this.height = (Screen.mainScreen.heightDIPs * 10) / 100;
-        this.borderRadius = 10;
-        this.addChild(loading);
-    }
-}
-
-class ModalUpdateIos extends GridLayout {
-    private btnActualizar: Button;
-    constructor(
-        private message: string, 
-        private okBtnText: string, 
-        private idPackage: string, 
-        private openAppStore?: boolean,
-        private bgColor?: string,
-        private textColor?: string,
-        private bgBtnColor?: string,
-        private textbtnColor?: string,
-    ) {
-        super();
-        this.backgroundColor = new Color(this.bgColor);
-        this.color = new Color(this.textColor);
-        const msj: Label = new Label();
-        msj.text = message;
-        msj.verticalAlignment = 'middle';
-        msj.horizontalAlignment = 'center';
-        msj.color = new Color(this.textColor);
-        msj.fontSize = 18;
-        msj.style.fontWeight = 'bold';
-        this.addChild(msj);
-
-        if (this.openAppStore) {
-            this.btnActualizar = new Button();
-            this.btnActualizar.text = okBtnText;
-            this.btnActualizar.color = new Color(this.textbtnColor);
-            this.btnActualizar.horizontalAlignment = 'center';
-            this.btnActualizar.verticalAlignment = 'bottom';
-            this.btnActualizar.style.fontWeight = "bold"
-            this.btnActualizar.width = (Screen.mainScreen.widthDIPs * 90) / 100;
-            this.btnActualizar.height = 'auto';
-            this.btnActualizar.background = this.bgBtnColor;
-            this.btnActualizar.marginBottom = 30;
-            this.btnActualizar.on('tap', (args: TapGestureEventData) => {
-                const url: string = `itms-apps://itunes.apple.com/app/id${this.idPackage}`;
-                Utils.openUrl(url);
-            });
-            this.addChild(this.btnActualizar);
-        }
-
-        Application.ios.on(Application.iOSApplication.suspendEvent, (args) => { });
-    }
-
-    disposeNativeView(): void {
-        Application.ios.off(Application.iOSApplication.suspendEvent);
-        super.disposeNativeView();
-    }
+  private isDebugForceUpdate(): boolean {
+    return __DEV__ && (this.options as any).__debugForceUpdate === true;
+  }
 }

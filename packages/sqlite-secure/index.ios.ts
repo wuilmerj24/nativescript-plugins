@@ -1,359 +1,180 @@
-import { path, knownFolders } from '@nativescript/core';
+import { SQLCipherRow, SQLCipherTransaction } from '.';
 import { SqliteSecureCommon } from './common';
-
-enum ESQLITE3NS {
-    SQLITE_OK = 0,
-    SQLITE_ERROR = 1 /* Generic error */,
-    SQLITE_INTERNAL = 2 /* Internal logic error in SQLite */,
-    SQLITE_PERM = 3 /* Access permission denied */,
-    SQLITE_ABORT = 4 /* Callback routine requested an abort */,
-    SQLITE_BUSY = 5 /* The database file is locked */,
-    SQLITE_LOCKED = 6 /* A table in the database is locked */,
-    SQLITE_NOMEM = 7 /* A malloc() failed */,
-    SQLITE_READONLY = 8 /* Attempt to write a readonly database */,
-    SQLITE_INTERRUPT = 9 /* Operation terminated by sqlite3_interrupt()*/,
-    SQLITE_IOERR = 10 /* Some kind of disk I/O error occurred */,
-    SQLITE_CORRUPT = 11 /* The database disk image is malformed */,
-    SQLITE_NOTFOUND = 12 /* Unknown opcode in sqlite3_file_control() */,
-    SQLITE_FULL = 13 /* Insertion failed because database is full */,
-    SQLITE_CANTOPEN = 14 /* Unable to open the database file */,
-    SQLITE_PROTOCOL = 15 /* Database lock protocol error */,
-    SQLITE_EMPTY = 16 /* Internal use only */,
-    SQLITE_SCHEMA = 17 /* The database schema changed */,
-    SQLITE_TOOBIG = 18 /* String or BLOB exceeds size limit */,
-    SQLITE_CONSTRAINT = 19 /*, Abort due to constraint violation */,
-    SQLITE_MISMATCH = 20 /* Data type mismatch */,
-    SQLITE_MISUSE = 21 /* Library used incorrectly */,
-    SQLITE_NOLFS = 22 /* Uses OS features not supported on host */,
-    SQLITE_AUTH = 23 /* Authorization denied */,
-    SQLITE_FORMAT = 24 /* Not used */,
-    SQLITE_RANGE = 25 /* 2nd parameter to sqlite3_bind out of range */,
-    SQLITE_NOTADB = 26 /* File opened that is not a database file */,
-    SQLITE_NOTICE = 27 /* Notifications from sqlite3_log() */,
-    SQLITE_WARNING = 28 /* Warnings from sqlite3_log() */,
-    SQLITE_ROW = 100 /* sqlite3_step() has another row ready */,
-    SQLITE_DONE = 101 /* sqlite3_step() has finished executing */,
-}
-
-enum ESQLITE_TYPE {
-    SQLITE_INTEGER = 1,
-    SQLITE_FLOAT = 2,
-    SQLITE_BLOB = 4,
-    SQLITE_NULL = 5,
-    SQLITE_TEXT = 3,
-    SQLITE3_TEXT = 3,
-}
+import { knownFolders, path } from '@nativescript/core';
 
 export class SqliteSecure extends SqliteSecureCommon {
-    public sqlite: interop.Reference<any> = null;
-    private filePath: string;
-    private isDbOpen: boolean = false;
-    public createDb(): interop.Pointer | interop.Reference<any> {
-        try {
-            this.filePath = path.join(knownFolders.documents().getFolder('db').path, this.dbname);
-            this.sqlite = new interop.Reference();
-            const db = sqlite3_open_v2(this.filePath, this.sqlite, 2 | 4, null);
-            // const sqliteController: Sqlite3Controller = Sqlite3Controller.new();
-            if (db == ESQLITE3NS.SQLITE_OK) {
-                console.log(db);
-                const nsPassword = NSString.stringWithString(this.password);
-                const passwordData = nsPassword.dataUsingEncoding(NSUTF8StringEncoding);
-                const passwordPtr = passwordData.bytes;
-                const passwordLength = passwordData.length;
+  private dbPtr: interop.Pointer | null = null;
 
-                // Llamar a sqlite3_key con el puntero y longitud
-                const keyResult = sqlite3_key(this.sqlite.value, passwordPtr, passwordLength);
+  async open(): Promise<void> {
+    if (this.isOpen) return;
 
-                // Verificar si la clave fue aplicada correctamente
-                if (keyResult !== ESQLITE3NS.SQLITE_OK) {
-                    const errorMessage = NSString.stringWithUTF8String(sqlite3_errmsg(this.sqlite));
-                    console.log("Failed to set encryption key: " + errorMessage);
-                    sqlite3_close(this.sqlite);
-                    return null;
-                }
-                this.isDbOpen = true;
-            } else {
-                this.isDbOpen = false;
-            }
-            if (this.version) {
-                this.setVersion(this.version);
-            }
-            return this.sqlite
-        } catch (error) {
-            console.log(error);
-            return null;
-        }
+    const documents = knownFolders.documents();
+    const dbPath = path.join(documents.path, this.options.name);
+
+    const dbPtrRef = new interop.Reference<interop.Pointer>();
+    const flags = 0x00000004 | 0x00000002; // SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
+
+    const rc = sqlite3_open_v2(dbPath, dbPtrRef, flags, null);
+    if (rc !== 0) {
+      throw new Error(`[SQLCipher][open] Cannot open database (code ${rc})`);
     }
 
-    public deleteDb(dbname: string): boolean {
-        try {
-            this.filePath = path.join(knownFolders.documents().getFolder('db').path, dbname);
-            const close = sqlite3_close_v2(interop.Pointer());
-            const fileManager = NSFileManager.defaultManager;
-            const remove = fileManager.removeItemAtPathError(this.filePath);
-            if (close == ESQLITE3NS.SQLITE_OK && remove == true) {
-                this.isDbOpen = false;
-                return true;
-            } else {
-                return false;
-            }
-        } catch (error) {
-            console.log(error);
-        }
+    this.dbPtr = dbPtrRef.value;
+
+    // Set encryption key
+    this.executeSQL(`PRAGMA key = '${this.options.password}'`);
+
+    this.execPragmas();
+    this.isOpen = true;
+  }
+
+  async close(): Promise<void> {
+    if (!this.dbPtr) return;
+    sqlite3_close(this.dbPtr);
+    this.dbPtr = null;
+    this.isOpen = false;
+  }
+
+  async run(sql: string, params?: any[]): Promise<void> {
+    this.assertOpen();
+    if (sql.trim().toUpperCase().startsWith('SELECT')) {
+      throw new Error('[SQLCipher][run] SELECT queries must use all()');
     }
+    this.executeSQL(sql, params);
+  }
 
-    public openDb(): interop.Pointer | interop.Reference<any> {
-        return this.createDb();
+  async all<T = SQLCipherRow>(sql: string, params?: any[]): Promise<T[]> {
+    this.assertOpen();
+
+    const results: T[] = [];
+
+    const stmtPtrRef = new interop.Reference<interop.Pointer>();
+    if (sqlite3_prepare_v2(this.dbPtr, sql, -1, stmtPtrRef, null) !== 0) {
+      throw new Error(`[SQLCipher][all] Error preparing statement`);
     }
+    const stmt = stmtPtrRef.value;
 
-    public isOpen(): boolean {
-        return this.isDbOpen;
-    }
-
-    public setVersion(version: number) {
-        const setVersionString = `PRAGMA user_version =${version};`;
-        try {
-            const setVersionStatement: interop.Reference<any> = new interop.Reference();
-            const res = sqlite3_prepare_v2(this.sqlite.value, setVersionString, -1, setVersionStatement, null);
-            if (res == ESQLITE3NS.SQLITE_OK) {
-                const step = sqlite3_step(setVersionStatement.value);
-                if (step == ESQLITE3NS.SQLITE_DONE) {
-                    sqlite3_finalize(setVersionStatement.value);
-                    return true;
-                }
-                return false;
-            }
-            return false;
-        } catch (error) {
-            console.log(error);
-        }
-    }
-
-    public getVersion(): number {
-        try {
-            let queryString = 'PRAGMA user_version;';
-            const queryStatement: interop.Reference<any> = new interop.Reference();
-            if (sqlite3_prepare_v2(this.sqlite.value, queryString, -1, queryStatement, null) == ESQLITE3NS.SQLITE_OK) {
-                if (sqlite3_step(queryStatement.value) == ESQLITE3NS.SQLITE_ROW) {
-                    const version = sqlite3_column_int(queryStatement.value, 0);
-                    return version;
-                }
-                return 0;
-            }
-            return 0;
-        } catch (error) {
-            console.log(error);
-        }
-    }
-
-    public async execute(query: string, args?: any[]) {
-        return new Promise(async (rs, rj) => {
-            try {
-                const statement: interop.Reference<any> = new interop.Reference();
-                const prepare = sqlite3_prepare_v2(this.sqlite.value, query, -1, statement, null);
-
-                if (prepare === ESQLITE3NS.SQLITE_OK) {
-                    // Vincular parámetros
-                    if (args != undefined) {
-                        for (let i = 0; i < args.length; i++) {
-                            const paramIndex = i + 1;
-
-                            if (this.isString(args[i])) {
-                                sqlite3_bind_text(statement.value, paramIndex, args[i], -1, null);
-                            } else if (this.isInt(args[i])) {
-                                sqlite3_bind_int(statement.value, paramIndex, parseInt(args[i]));
-                            } else if (this.isFloat(args[i])) {
-                                sqlite3_bind_double(statement.value, paramIndex, parseFloat(args[i]));
-                            } else if (this.isBoolean(args[i])) {
-                                const value = args[i] === true ? 1 : 0;
-                                sqlite3_bind_int(statement.value, paramIndex, value);
-                            } else if (this.isBlob(args[i])) {
-                                sqlite3_bind_blob(statement.value, paramIndex, args[i], -1, null);
-                            }
-                        }
-                    }
-
-                    const res_query = sqlite3_step(statement.value);
-                    sqlite3_finalize(statement.value);
-
-                    if (res_query === ESQLITE3NS.SQLITE_DONE) {
-                        const normalizedQuery = query.trim().toUpperCase();
-
-                        // 1. Si es INSERT, devolver el último ID
-                        if (normalizedQuery.startsWith("INSERT")) {
-                            const lastId = sqlite3_last_insert_rowid(this.sqlite.value);
-                            rs(lastId);
-                            return lastId;
-                        }
-
-                        // 2. Si es CREATE TABLE o DROP TABLE, devolver true
-                        if (normalizedQuery.startsWith("CREATE TABLE") || normalizedQuery.startsWith("DROP TABLE")) {
-                            rs(true);
-                            return true;
-                        }
-
-                        // 3. Para otros casos, devolver el código de resultado
-                        rs(res_query);
-                        return res_query;
-                    }
-                }
-
-                // Si la preparación o ejecución falla
-                const error = sqlite3_errmsg(this.sqlite);
-                sqlite3_finalize(statement.value);
-                const errorMsg = NSString.stringWithCStringEncoding(error, 4); // NSUTF8StringEncoding = 4
-
-                // Si es CREATE o DROP TABLE, devolver false
-                const normalizedQuery = query.trim().toUpperCase();
-                if (normalizedQuery.startsWith("CREATE TABLE") || normalizedQuery.startsWith("DROP TABLE")) {
-                    rs(false);
-                    return false;
-                }
-
-                rj(errorMsg);
-                return errorMsg;
-
-            } catch (error) {
-                console.error(error);
-                rj(error);
-                return error;
-            }
-        });
-    }
-
-
-
-    public async select(query: string, args?: any[]): Promise<any[] | false> {
-        return new Promise(async (resolve, reject) => {
-            try {
-                let results: { [key: string]: any }[] = [];
-                const statement: interop.Reference<any> = new interop.Reference();
-
-                const prepareStatus = sqlite3_prepare_v2(this.sqlite.value, query, -1, statement, null);
-                if (prepareStatus !== ESQLITE3NS.SQLITE_OK) {
-                    // Error al preparar la consulta (tabla no existe, error de sintaxis, etc.)
-                    resolve(false);
-                    return;
-                }
-
-                // Bind de parámetros
-                if (args != undefined) {
-                    for (let i = 0; i < args.length; i++) {
-                        const index = i + 1;
-                        const value = args[i];
-
-                        if (this.isString(value)) {
-                            sqlite3_bind_text(statement.value, index, value, -1, null);
-                        } else if (this.isInt(value)) {
-                            sqlite3_bind_int(statement.value, index, parseInt(value));
-                        } else if (this.isFloat(value)) {
-                            sqlite3_bind_double(statement.value, index, parseFloat(value));
-                        } else if (this.isBoolean(value)) {
-                            sqlite3_bind_int(statement.value, index, value === true ? 1 : 0);
-                        } else if (this.isBlob(value)) {
-                            sqlite3_bind_blob(statement.value, index, value, -1, null);
-                        }
-                    }
-                }
-
-                // Ejecutar y leer resultados
-                let stepResult = sqlite3_step(statement.value);
-                while (stepResult === ESQLITE3NS.SQLITE_ROW) {
-                    let row: { [key: string]: any } = {};
-                    const columnCount = sqlite3_column_count(statement.value);
-
-                    for (let i = 0; i < columnCount; i++) {
-                        const columnName = NSString.stringWithCString(sqlite3_column_name(statement.value, i));
-                        const columnType = sqlite3_column_type(statement, i);
-
-                        switch (columnType) {
-                            case ESQLITE_TYPE.SQLITE_INTEGER:
-                                row[columnName] = sqlite3_column_int(statement.value, i);
-                                break;
-                            case ESQLITE_TYPE.SQLITE_FLOAT:
-                                row[columnName] = sqlite3_column_double(statement.value, i);
-                                break;
-                            case ESQLITE_TYPE.SQLITE_TEXT:
-                            case ESQLITE_TYPE.SQLITE3_TEXT:
-                                row[columnName] = NSString.stringWithCString(sqlite3_column_text(statement.value, i));
-                                break;
-                            case ESQLITE_TYPE.SQLITE_BLOB:
-                                const ptr = sqlite3_column_blob(statement.value, i);
-                                const size = sqlite3_column_bytes(statement.value, i);
-                                row[columnName] = NSData.dataWithBytesLength(ptr, size);
-                                break;
-                            case ESQLITE_TYPE.SQLITE_NULL:
-                                row[columnName] = null;
-                                break;
-                        }
-                    }
-
-                    results.push(row);
-                    stepResult = sqlite3_step(statement.value);
-                }
-
-                sqlite3_finalize(statement.value);
-
-                // Si no hubo errores pero tampoco resultados, devuelve false
-                if (results.length === 0) {
-                    resolve(false);
-                } else {
-                    resolve(results);
-                }
-
-            } catch (error) {
-                console.error(error);
-                reject(false);
-            }
-        });
-    }
-
-
-    close(): boolean {
-        if (sqlite3_close_v2(this.sqlite.value) == ESQLITE3NS.SQLITE_OK) {
-            this.isDbOpen = false;
-            return true;
+    // Bind parameters if needed (Te faltaba esto en la función all original)
+    if (params) {
+      for (let i = 0; i < params.length; i++) {
+        const val = params[i];
+        if (val === null || val === undefined) {
+          sqlite3_bind_null(stmt, i + 1);
+        } else if (typeof val === 'number') {
+          sqlite3_bind_double(stmt, i + 1, val);
         } else {
-            let error = sqlite3_errmsg(this.sqlite);
-            console.log(NSString.stringWithCString(error));
-            return false;
+          sqlite3_bind_text(stmt, i + 1, String(val), -1, null);
         }
+      }
     }
 
-    private countRowsInTable(tabla: string): number {
-        let query = `SELECT COUNT(*) FROM ${tabla};`;
-        var statement: interop.Reference<any> = new interop.Reference();
-        var rowCount: number = 0;
+    let rc = sqlite3_step(stmt);
+    const columnCount = sqlite3_column_count(stmt);
 
-        if (sqlite3_prepare_v2(this.sqlite.value, query, -1, statement, null) == ESQLITE3NS.SQLITE_OK) {
-            if (sqlite3_step(statement.value) == ESQLITE3NS.SQLITE_ROW) {
-                rowCount = sqlite3_column_int(statement, 0);
+    while (rc === 100) {
+      // SQLITE_ROW
+      const row: any = {};
+      for (let i = 0; i < columnCount; i++) {
+        // 1. CORRECCIÓN: Obtener el puntero del nombre y convertirlo a String JS
+        const namePtr = sqlite3_column_name(stmt, i);
+        const name = NSString.stringWithUTF8String(namePtr).toString();
+
+        const type = sqlite3_column_type(stmt, i);
+
+        switch (type) {
+          case 1: // SQLITE_INTEGER
+            row[name] = sqlite3_column_int64(stmt, i);
+            break;
+          case 2: // SQLITE_FLOAT
+            row[name] = sqlite3_column_double(stmt, i);
+            break;
+          case 3: // SQLITE_TEXT
+            // 2. CORRECCIÓN: Usar column_text y convertir puntero a String
+            const textPtr = sqlite3_column_text(stmt, i);
+            if (textPtr) {
+              row[name] = NSString.stringWithUTF8String(textPtr).toString();
+            } else {
+              row[name] = null;
             }
-        } else {
-            const error = sqlite3_errmsg(this.sqlite.value);
+            break;
+          case 4: // SQLITE_BLOB
+            // Nota: Los blobs a veces requieren manejo especial de punteros/tamaño
+            const blobPtr = sqlite3_column_blob(stmt, i);
+            const size = sqlite3_column_bytes(stmt, i);
+            // Aquí podrías necesitar interop.bufferFromData si quieres un ArrayBuffer
+            row[name] = blobPtr;
+            break;
+          case 5: // SQLITE_NULL
+            row[name] = null;
+            break;
+          default:
+            // Fallback a texto
+            const defPtr = sqlite3_column_text(stmt, i);
+            row[name] = defPtr ? NSString.stringWithUTF8String(defPtr).toString() : null;
         }
-
-        sqlite3_finalize(statement);
-        return rowCount;
+      }
+      results.push(row);
+      rc = sqlite3_step(stmt);
     }
 
-    private isInt(value: any): boolean {
-        return Number.isInteger(value);
+    sqlite3_finalize(stmt);
+    return results;
+  }
+
+  async transaction(callback: (tx: SQLCipherTransaction) => Promise<void>): Promise<void> {
+    this.assertOpen();
+    this.executeSQL('BEGIN TRANSACTION');
+    try {
+      await callback({
+        run: (sql, params) => this.run(sql, params),
+        all: (sql, params) => this.all(sql, params),
+      });
+      this.executeSQL('COMMIT');
+    } catch (e) {
+      this.executeSQL('ROLLBACK');
+      throw e;
+    }
+  }
+
+  async changePassword(newPassword: string): Promise<void> {
+    this.assertOpen();
+    this.executeSQL(`PRAGMA rekey = '${newPassword}'`);
+    this.options.password = newPassword;
+  }
+
+  private execPragmas() {
+    this.executeSQL('PRAGMA foreign_keys = ON');
+    this.executeSQL('PRAGMA secure_delete = ON');
+    this.executeSQL('PRAGMA journal_mode = WAL');
+    this.executeSQL('PRAGMA synchronous = NORMAL');
+  }
+
+  private executeSQL(sql: string, params?: any[]) {
+    const stmtPtrRef = new interop.Reference<interop.Pointer>();
+    if (sqlite3_prepare_v2(this.dbPtr, sql, -1, stmtPtrRef, null) !== 0) {
+      throw new Error(`[SQLCipher][executeSQL] Error preparing statement: ${sql}`);
+    }
+    const stmt = stmtPtrRef.value;
+    if (params) {
+      for (let i = 0; i < params.length; i++) {
+        const val = params[i];
+        if (val === null || val === undefined) {
+          sqlite3_bind_null(stmt, i + 1);
+        } else if (typeof val === 'number') {
+          sqlite3_bind_double(stmt, i + 1, val);
+        } else {
+          sqlite3_bind_text(stmt, i + 1, String(val), -1, null);
+        }
+      }
     }
 
-    private isFloat(value: any): boolean {
-        return typeof value === 'number' && !Number.isInteger(value);
+    let rc = sqlite3_step(stmt);
+    if (rc !== 101 && rc !== 100) {
+      // SQLITE_DONE or SQLITE_ROW
+      sqlite3_finalize(stmt);
+      throw new Error(`[SQLCipher][executeSQL] Step failed: ${rc}`);
     }
 
-    private isString(value: any): boolean {
-        return typeof value === 'string';
-    }
-
-    private isBoolean(value: any): boolean {
-        return typeof value === 'boolean';
-    }
-
-    private isBlob(value: any): boolean {
-        return value instanceof Blob;
-    }
+    sqlite3_finalize(stmt);
+  }
 }

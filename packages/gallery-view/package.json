@@ -1,6 +1,6 @@
 {
   "name": "@wuilmerj24/gallery-view",
-  "version": "1.0.8",
+  "version": "2.0.0",
   "description": "A NativeScript plugin to easily select and manage time ranges. Perfect for scheduling, alarms, or any app that requires time interval selection.",
   "main": "index",
   "types": "index.d.ts",
@@ -27,6 +27,9 @@
   },
   "bugs": {
     "url": "https://github.com/wuilmerj24/nativescript-plugins/issues"
+  },
+  "dependencies": {
+    "@nativescript-community/perms": "^3.0.4"
   },
   "license": "Apache-2.0",
   "homepage": "https://github.com/wuilmerj24/nativescript-plugins",

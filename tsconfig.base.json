@@ -36,7 +36,8 @@
       "@wuilmerj24/carouselm": ["packages/carouselm/index.d.ts"],
       "@wuilmerj24/carousel": ["packages/carousel/index.d.ts"],
       "@wuilmerj24/nosql": ["packages/nosql/index.d.ts"],
-      "@wuilmerj24/mapbox-navigation": ["packages/mapbox-navigation/index.d.ts"]
+      "@wuilmerj24/mapbox-navigation": ["packages/mapbox-navigation/index.d.ts"],
+      "@wuilmerj24/mapbox-navigation/angular": ["packages/mapbox-navigation/angular/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

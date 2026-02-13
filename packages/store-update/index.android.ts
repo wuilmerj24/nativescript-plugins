@@ -1,279 +1,213 @@
+import { Application, Utils } from '@nativescript/core';
+import { UpdateInfo, UpdateOptions } from './';
 import { StoreUpdateCommon } from './common';
-import { ActivityIndicator, Application, ApplicationEventData, Button, CancelableOptions, Color, confirm, Dialogs, getCurrentPage, GridLayout, Http, Label, ModalTransition, Screen, ShowModalOptions, StackLayout, TapGestureEventData, Utils } from '@nativescript/core';
 
 export class StoreUpdate extends StoreUpdateCommon {
-    
-    private context:android.content.Context;
-    constructor(){
-        super();
-        this.context = Application.android.foregroundActivity || Application.android.context || Utils.android.getApplicationContext();
-    }
-    getAppId(): string {
-        return Utils.android.getPackageName();
+  constructor(options: UpdateOptions) {
+    super(options);
+  }
+
+  // ============================
+  // ANDROID INFO
+  // ============================
+  private getContext() {
+    return Application.android.foregroundActivity || Application.android.startActivity;
+  }
+
+  private getLocalVersion(): string {
+    const ctx = this.getContext();
+    const pm = ctx.getPackageManager();
+    const pkg = pm.getPackageInfo(ctx.getPackageName(), 0);
+    return pkg.versionName;
+  }
+
+  private getBundleId(): string {
+    return this.getContext().getPackageName();
+  }
+
+  // ============================
+  // 1️⃣ CHECK UPDATE (MANUAL)
+  // ============================
+  async checkUpdate() {
+    const context = this.getContext();
+
+    const localVersion = this.getLocalVersion();
+    const bundleId = this.getBundleId();
+
+    // Google Play NO expone versión remota directa
+    const storeVersion = 'unknown';
+
+    const needsUpdate = this.isDebugForceUpdate();
+
+    const storeUrl = `https://play.google.com/store/apps/details?id=${bundleId}`;
+
+    if (needsUpdate) {
+      if (this.options.forceUpdate) {
+        this.showForceUpdateDialogFullscreen(storeUrl);
+      } else {
+        this.showOptionalDialog(context, storeUrl);
+      }
     }
 
-    getLocalVersion(): string {
-        try {
-            const versionName: string = this.context.getPackageManager().getPackageInfo(this.getAppId(), 0).versionName;
-            return versionName;
-        } catch (error) {
-            console.error(error);
-        }
+    return {
+      localVersion,
+      storeVersion,
+      bundleId,
+      needsUpdate,
+    };
+  }
+
+  // ============================
+  // FULLSCREEN (FORCE UPDATE)
+  // ============================
+  private showForceUpdateDialogFullscreen(storeUrl: string) {
+    const activity = Application.android.foregroundActivity || Application.android.startActivity;
+
+    if (!activity) {
+      Application.once(Application.android.activityResumedEvent, () => this.showForceUpdateDialogFullscreen(storeUrl));
+      return;
     }
 
-    getNubeVersion(country?:string): Promise<any> {
-        return new Promise(async (rs, rj) => {
-            let manager: android.telephony.TelephonyManager = this.context.getSystemService(android.content.Context.TELEPHONY_SERVICE);
-            let locale: string = manager.getNetworkCountryIso();
-            const url: string = `https://play.google.com/store/apps/details?id=${this.getAppId()}&hl=es&gl=${locale}`;
-            await Http.getString(url).then((response: string) => {
-                const notFoundMessage = 'No se ha podido encontrar la URL solicitada en este servidor.';
-                if (response.includes(notFoundMessage)) {
-                    // throw new Error(notFoundMessage);
-                    console.log('AppId not found.');
-                    rj(null);
-                    return null;
-                }
-                try {
-                    const version: string = response.match(/\[\[\["([\d-.]+?)"\]\]/)[1].trim();
-                    rs(version);
-                    return version;
-                } catch (error) {
-                    rj(error);
-                    return error;
-                }
+    activity.runOnUiThread(
+      new java.lang.Runnable({
+        run: () => {
+          const dialog = new android.app.Dialog(activity, android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen);
+
+          dialog.setCancelable(false);
+          dialog.setCanceledOnTouchOutside(false);
+
+          const layout = new android.widget.LinearLayout(activity);
+          layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+          layout.setGravity(android.view.Gravity.CENTER);
+          layout.setPadding(60, 60, 60, 60);
+
+          if (this.options.screenBackgroundColor) {
+            layout.setBackgroundColor(android.graphics.Color.parseColor(this.options.screenBackgroundColor));
+          }
+
+          const text = new android.widget.TextView(activity);
+          text.setText(this.options.message);
+          text.setTextSize(18);
+          text.setGravity(android.view.Gravity.CENTER);
+
+          if (this.options.messageColor) {
+            text.setTextColor(android.graphics.Color.parseColor(this.options.messageColor));
+          }
+
+          const button = new android.widget.Button(activity);
+          button.setText(this.options.titleButton);
+
+          if (this.options.buttonColor) {
+            button.setBackgroundColor(android.graphics.Color.parseColor(this.options.buttonColor));
+          }
+
+          if (this.options.titleButtonColor) {
+            button.setTextColor(android.graphics.Color.parseColor(this.options.titleButtonColor));
+          }
+
+          button.setOnClickListener(
+            new android.view.View.OnClickListener({
+              onClick: () => {
+                Utils.openUrl(storeUrl);
+              },
             })
-            .catch((error) => {
-                rj(error);
-                return error;
+          );
+
+          layout.addView(text);
+          layout.addView(button);
+          dialog.setOnKeyListener(
+            new android.content.DialogInterface.OnKeyListener({
+              onKey: (_dialog, keyCode) => {
+                return keyCode === android.view.KeyEvent.KEYCODE_BACK;
+              },
             })
-            .finally(() => {
-                rj(null);
-                return null;
-            });
-        });
+          );
+          dialog.setContentView(layout);
+          dialog.show();
+        },
+      })
+    );
+  }
+
+  // ============================
+  // OPTIONAL DIALOG
+  // ============================
+  private showOptionalDialog(context: any, storeUrl: string) {
+    const builder = new android.app.AlertDialog.Builder(context);
+
+    builder.setMessage(this.options.message);
+
+    builder.setPositiveButton(
+      this.options.titleButton,
+      new android.content.DialogInterface.OnClickListener({
+        onClick: () => Utils.openUrl(storeUrl),
+      })
+    );
+
+    builder.setNegativeButton('Close', null);
+    builder.setCancelable(true);
+    builder.show();
+  }
+
+  // ============================
+  // 2️⃣ IN-APP UPDATE (PLAY CORE)
+  // ============================
+  async updateInApp(): Promise<never> {
+    const activity = Application.android.foregroundActivity || Application.android.startActivity;
+
+    if (!activity) {
+      throw new Error('No activity available');
     }
 
-    updateApp(forceUpdate: boolean, okTextButton?: string, cancelTextButton?: string, message?: string, openAppStore?: boolean, bgColor?: string, textColor?: string, bgBtnColor?: string,textbtnColor?:string) {
-        const modalLoading: ModalLoading = new ModalLoading();
-        getCurrentPage().showModal(modalLoading, {
-            closeCallback(...args) { },
-            context: null,
-            animated: true,
-            cancelable: false,
-            fullscreen: false,
-            stretched: false,
-            transition: ModalTransition.AndroidTransitionType.enter,
-        } as ShowModalOptions);
-        return new Promise(async (rs, rj) => {
-            const version_nube: string = await this.getNubeVersion()
-                .then((version) => {
-                    modalLoading.closeModal();
-                    return version;
-                })
-                .catch((err) => {
-                    modalLoading.closeModal();
-                });
+    const appUpdateManager = com.google.android.play.core.appupdate.AppUpdateManagerFactory.create(activity);
 
-            const version_local: string = this.getLocalVersion();
-            const comparison = this.compareVersions(version_nube, version_local);
-            if (comparison > 0) {
-                if (forceUpdate) {
-                    const modal: ModalUpdateAndroid = new ModalUpdateAndroid(message, okTextButton, this.getAppId(), openAppStore,bgColor,textColor,bgBtnColor,textbtnColor);
-                    Application.android.on('activityResumed', async (args) => {
-                        const version_nube: string = await this.getNubeVersion();
-                        const version_local: string = this.getLocalVersion();
-                        const comparison = this.compareVersions(version_nube, version_local);
-                        if (comparison <= 0) {
-                            modal.closeModal();
-                            Application.android.off('activityResumed');
-                            Application.android.off('activityPaused');
-                        }
-                    });
+    const launchUpdate = () => {
+      appUpdateManager.getAppUpdateInfo().addOnSuccessListener(
+        new com.google.android.gms.tasks.OnSuccessListener({
+          onSuccess: (info) => {
+            const updateAvailable = info.updateAvailability() === com.google.android.play.core.install.model.UpdateAvailability.UPDATE_AVAILABLE;
 
-                    Application.android.on('activityPaused', (args) => { });
+            const immediateAllowed = info.isUpdateTypeAllowed(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE);
 
-                    getCurrentPage().showModal(modal, {
-                        closeCallback(...args) { },
-                        context: null,
-                        animated: true,
-                        cancelable: false,
-                        fullscreen: true,
-                        stretched: true,
-                        transition: ModalTransition.AndroidTransitionType.enter,
-                    } as ShowModalOptions);
-                } else {
-                    confirm({
-                        cancelable: true,
-                        cancelButtonText: cancelTextButton,
-                        message: message,
-                        neutralButtonText: ' ',
-                        okButtonText: okTextButton,
-
-                    }).then((res) => {
-                        if (res) {
-                            this.openGooglePlay(this.getAppId());
-                        }
-                    });
-                }
+            if (updateAvailable && immediateAllowed) {
+              appUpdateManager.startUpdateFlow(info, activity, com.google.android.play.core.appupdate.AppUpdateOptions.defaultOptions(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE));
             }
-            modalLoading.closeModal();
-        });
-    }
+          },
+        })
+      );
+    };
 
-    compareVersions(version1: string, version2: string): number {
-        const v1Parts = version1.split('.').map(Number);
-        const v2Parts = version2.split('.').map(Number);
+    // 1️⃣ Listener de estado de instalación
+    const installListener = new com.google.android.play.core.install.InstallStateUpdatedListener({
+      onStateUpdate: (state) => {
+        const status = state.installStatus();
 
-        for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
-            const v1 = v1Parts[i] || 0;
-            const v2 = v2Parts[i] || 0;
-
-            if (v1 > v2) {
-                return 1;
-            } else if (v1 < v2) {
-                return -1;
-            }
+        // ❌ Usuario canceló o falló
+        if (status === com.google.android.play.core.install.model.InstallStatus.CANCELED || status === com.google.android.play.core.install.model.InstallStatus.FAILED) {
+          launchUpdate(); // 🔁 RELANZAR
         }
 
-        return 0;
-    }
-
-    openGooglePlay(id: string) {
-        const intent: android.content.Intent = new android.content.Intent(android.content.Intent.ACTION_VIEW);
-        intent.setData(android.net.Uri.parse(`market://details?id=${id}`));
-        this.context.startActivity(intent);
-    }
-
-    checkUpdateNative(): Promise<boolean> {
-        return new Promise<any>((rs, rj) => {
-            const appUpdateManager: com.google.android.play.core.appupdate.AppUpdateManager = com.google.android.play.core.appupdate.AppUpdateManagerFactory.create(this.context);
-            const appUpdateInfoTask: com.google.android.gms.tasks.Task<any> = appUpdateManager.getAppUpdateInfo();
-            const activity = Application.android.startActivity || Application.android.foregroundActivity;
-            Application.on(Application.android.activityPausedEvent, (args: ApplicationEventData) => {
-                Application.off(Application.android.activityPausedEvent);
-            });
-            Application.on(Application.android.activityResumedEvent, (args: ApplicationEventData) => {
-                Application.off(Application.android.activityResumedEvent);
-                appUpdateInfoTask.addOnSuccessListener(
-                    new com.google.android.gms.tasks.OnSuccessListener<any>({
-                        onSuccess(appUpdateInfo) {
-                            if (appUpdateInfo.updateAvailability() == com.google.android.play.core.install.model.UpdateAvailability.UPDATE_AVAILABLE && appUpdateInfo.isUpdateTypeAllowed(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE)) {
-                                appUpdateManager.startUpdateFlow(appUpdateInfo, activity, com.google.android.play.core.appupdate.AppUpdateOptions.defaultOptions(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE));
-                                rs(true);
-                            }
-                            {
-                                rj(false);
-                            }
-                        },
-                    })
-                );
-            });
-            appUpdateInfoTask.addOnSuccessListener(
-                new com.google.android.gms.tasks.OnSuccessListener<any>({
-                    onSuccess(appUpdateInfo) {
-                        if (appUpdateInfo.updateAvailability() == com.google.android.play.core.install.model.UpdateAvailability.UPDATE_AVAILABLE && appUpdateInfo.isUpdateTypeAllowed(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE)) {
-                            appUpdateManager.startUpdateFlow(appUpdateInfo, activity, com.google.android.play.core.appupdate.AppUpdateOptions.defaultOptions(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE));
-                            rs(true);
-                        }
-                        {
-                            rj(false);
-                        }
-                    },
-                })
-            );
-            appUpdateInfoTask.addOnCanceledListener(
-                activity,
-                new com.google.android.gms.tasks.OnCanceledListener({
-                    onCanceled() {
-                        rj(false);
-                    },
-                })
-            );
-            appUpdateInfoTask.addOnFailureListener(
-                new com.google.android.gms.tasks.OnFailureListener({
-                    onFailure(param0) {
-                        console.log(param0.getMessage());
-                        rj(false);
-                    },
-                })
-            );
-        });
-    }
-}
-
-
-class ModalLoading extends StackLayout {
-    constructor(
-
-    ) {
-        super();
-        const loading: ActivityIndicator = new ActivityIndicator();
-        loading.busy = true;
-        loading.color = new Color('#FFFFFF');
-        (loading.verticalAlignment = 'middle'), (loading.horizontalAlignment = 'center');
-        loading.width = (Screen.mainScreen.widthDIPs * 15) / 100;
-        loading.height = (Screen.mainScreen.heightDIPs * 15) / 100;
-        this.backgroundColor = new Color('#000000');
-        this.width = (Screen.mainScreen.widthDIPs * 90) / 100;
-        this.height = (Screen.mainScreen.heightDIPs * 20) / 100;
-        this.addChild(loading);
-    }
-}
-
-class ModalUpdateAndroid extends GridLayout {
-    private btnActualizar: Button;
-    constructor(
-        private message: string, 
-        private okBtnText: string, 
-        private idPackage: string, 
-        private openAppStore?: boolean,
-        private bgColor?: string,
-        private textColor?: string,
-        private bgBtnColor?: string,
-        private textbtnColor?: string,
-    ) {
-        super();
-        this.backgroundColor = new Color(this.bgColor);
-        this.color = new Color(this.textColor);
-        const msj: Label = new Label();
-        msj.text = message;
-        msj.verticalAlignment = 'middle';
-        msj.horizontalAlignment = 'center';
-        msj.color = new Color(this.textColor);
-        msj.fontSize = 18;
-        msj.style.fontWeight = 'bold';
-        this.addChild(msj);
-
-        if (this.openAppStore) {
-            this.btnActualizar = new Button();
-            this.btnActualizar.text = okBtnText;
-            this.btnActualizar.color = new Color(this.textbtnColor);
-            this.btnActualizar.horizontalAlignment = 'center';
-            this.btnActualizar.verticalAlignment = 'bottom';
-            this.btnActualizar.style.fontWeight="bold"
-            this.btnActualizar.width = (Screen.mainScreen.widthDIPs * 90) / 100;
-            this.btnActualizar.height = 'auto';
-            this.btnActualizar.background = this.bgBtnColor;
-            this.btnActualizar.androidElevation=0;
-            this.btnActualizar.marginBottom = 30;
-            this.btnActualizar.on('tap', (args: TapGestureEventData) => {
-                // openGooglePlay(this.idPackage);
-                const intent: android.content.Intent = new android.content.Intent(android.content.Intent.ACTION_VIEW);
-                intent.setData(android.net.Uri.parse(`market://details?id=${this.idPackage}`));
-                const context: android.content.Context = Application.android.foregroundActivity || Application.android.context || Utils.android.getApplicationContext();
-                context.startActivity(intent);
-            });
-            this.addChild(this.btnActualizar);
+        // ✅ Instalado
+        if (status === com.google.android.play.core.install.model.InstallStatus.INSTALLED) {
+          appUpdateManager.unregisterListener(installListener);
+          android.os.Process.killProcess(android.os.Process.myPid());
         }
+      },
+    });
 
-        Application.android.on(Application.AndroidApplication.activityBackPressedEvent, (args) => {
-            args.cancel = true;
-        });
-    }
+    appUpdateManager.registerListener(installListener);
 
-    disposeNativeView(): void {
-        Application.android.off(Application.AndroidApplication.activityBackPressedEvent);
-        super.disposeNativeView();
-    }
+    // 2️⃣ Reintento SIEMPRE al volver a foreground
+    Application.on(Application.android.activityResumedEvent, launchUpdate);
+
+    // 3️⃣ Primer intento
+    launchUpdate();
+
+    // ⛔ Nunca se resuelve → FORZADO REAL
+    return new Promise(() => {});
+  }
+
+  private isDebugForceUpdate(): boolean {
+    return __DEV__ && (this.options as any).__debugForceUpdate === true;
+  }
 }

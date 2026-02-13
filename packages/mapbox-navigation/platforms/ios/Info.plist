@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <!-- ========================= -->
+    <!-- PERMISOS EXISTENTES -->
+    <!-- ========================= -->
+
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Necesitamos acceso a tus fotos para que puedas seleccionar imágenes desde la galería.</string>
+
+    <key>NSCameraUsageDescription</key>
+    <string>Necesitamos acceso a la cámara para que puedas tomar fotos desde la aplicación.</string>
+
+    <!-- ========================= -->
+    <!-- MAPBOX - LOCALIZACIÓN -->
+    <!-- OBLIGATORIOS -->
+    <!-- ========================= -->
+
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Necesitamos tu ubicación para mostrar el mapa y guiarte durante la navegación.</string>
+
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Necesitamos tu ubicación incluso en segundo plano para continuar la navegación.</string>
+
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Necesitamos tu ubicación para ofrecer navegación precisa incluso cuando la app está en segundo plano.</string>
+
+    <!-- ========================= -->
+    <!-- MAPBOX - BACKGROUND MODE -->
+    <!-- Necesario para navegación -->
+    <!-- ========================= -->
+
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+        <string>audio</string>
+    </array>
+
+    <!-- ========================= -->
+    <!-- MAPBOX - VOZ / TTS -->
+    <!-- ========================= -->
+
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Se utiliza para mejorar la experiencia de navegación por voz.</string>
+
+    <!-- ========================= -->
+    <!-- MAPBOX - BLUETOOTH -->
+    <!-- (opcional, pero recomendado para Car / sensores) -->
+    <!-- ========================= -->
+
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Se utiliza para conectar dispositivos externos durante la navegación.</string>
+
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>Se utiliza para detectar dispositivos Bluetooth durante la navegación.</string>
+
+    <!-- ========================= -->
+    <!-- TRANSPORTE DE RED -->
+    <!-- ========================= -->
+
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+
+    <!-- ========================= -->
+    <!-- MAPBOX - IDENTIFICACIÓN -->
+    <!-- Recomendado -->
+    <!-- ========================= -->
+
+    <key>NSUserTrackingUsageDescription</key>
+    <string>Esta información se usa para mejorar la experiencia de navegación.</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>es</string>
+    </array>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>es</string>
+</dict>
+</plist>

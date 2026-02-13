@@ -7,9 +7,7 @@
         <ScrollView class="h-full">
           <StackLayout>
             <Button text="Test store-update" tap="{{ testIt }}" class="btn btn-primary"/>
-            <Button text="update" tap="{{ actualizar }}" class="btn btn-primary"/>
-            <Button text="NativeU" tap="{{ nativeupdate }}" class="btn btn-primary"/>
-
+            <Button text="Update in app " tap="{{ updateAndroid }}" class="btn btn-primary"/>
 
           </StackLayout>
         </ScrollView>

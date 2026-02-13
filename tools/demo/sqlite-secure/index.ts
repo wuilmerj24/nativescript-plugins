@@ -2,93 +2,55 @@ import { DemoSharedBase } from '../utils';
 import { SqliteSecure } from '@wuilmerj24/sqlite-secure';
 
 export class DemoSharedSqliteSecure extends DemoSharedBase {
-  sqlite: SqliteSecure = new SqliteSecure('dbname.db', '', 100);
-  constructor(
-
-  ) {
+  db: SqliteSecure;
+  constructor() {
     super();
-    this.create();
-  }
-  create() {
-    let resCreate = this.sqlite.createDb();
-    console.log(resCreate);
-  }
 
-  open() {
-    let resOPen = this.sqlite.openDb();
-    console.log(resOPen);
+    this.db = new SqliteSecure({
+      name: 'secure_test.db',
+      password: 'new_secret_456',
+      enableWAL: true,
+    });
   }
+  async testIt() {
+    console.log('test sqlite-secure!');
 
-  isopen() {
-    alert(this.sqlite.isOpen());
-  }
+    try {
+      console.log('🔐 Opening database...');
+      await this.db.open();
 
-  deletedb() {
-    alert(this.sqlite.deleteDb('dbname.db'));
-  }
+      console.log('📦 Creating table...');
+      await this.db.run(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                email TEXT
+            )
+        `);
 
-  changeVersion() {
-    this.sqlite.setVersion(2000);
-    alert(this.sqlite.getVersion());
-  }
+      console.log('✍️ Inserting data...');
+      await this.db.run(`INSERT INTO users (name, email) VALUES (?, ?)`, ['Wuilmer', 'wuilmer@test.com']);
 
-  async createTable() {
-    const query = `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,age INTEGER)`;
-    let res = this.sqlite.execute(query);
-    console.log(await res)
-  }
+      console.log('🔁 Transaction test...');
+      await this.db.transaction(async (tx) => {
+        await tx.run(`INSERT INTO users (name, email) VALUES (?, ?)`, ['Alice', 'alice@test.com']);
+        await tx.run(`INSERT INTO users (name, email) VALUES (?, ?)`, ['Bob', 'bob@test.com']);
+      });
 
-  async innsertData() {
-    const query = `INSERT INTO users (name,age) VALUES(?,?)`;
-    const res = await this.sqlite.execute(query, ['JOSE', 225]);
-    console.log('res insert ', res);
-  }
+      console.log('📤 Querying data...');
+      const users = await this.db.all<{ id: number; name: string; email: string }>(`SELECT * FROM users`);
 
-  async selectData() {
-    const query = `SELECT * FROM users`;
-    // const query = `SELECT COUNT(*) FROM users`;
-    const result = await this.sqlite.select(query);
-    console.log(result);
-  }
+      console.log('✅ Users:', JSON.stringify(users, null, 2));
 
-  async selectBy() {
-    const query = `SELECT * FROM users WHERE id=?`;
-    const result = await this.sqlite.select(query, [1]);
-    console.log(result);
-  }
+      console.log('🔑 Changing password...');
+      await this.db.changePassword('new_secret_456');
 
-  async deleteT() {
-    const query = `DROP TABLE IF EXISTS users`;
-    const result = await this.sqlite.execute(query);
-    console.log(result);
-  }
+      console.log('🔒 Closing database...');
+      await this.db.close();
 
-  async deleteD() {
-    const query = `DELETE FROM users`;
-    const result = await this.sqlite.execute(query);
-    console.log(result);
-  }
-
-  async deleteDone() {
-    const query = `DELETE FROM users WHERE id=?`;
-    const result = await this.sqlite.execute(query, [1]);
-    console.log(result);
-  }
-
-  async updateAll() {
-    const query = `UPDATE users SET age =?`;
-    const result = await this.sqlite.execute(query, [15]);
-    console.log(result);
-  }
-
-  async update() {
-    const query = `UPDATE users SET name =? WHERE id = ?`;
-    const result = await this.sqlite.execute(query, ['wuilmer', 4]);
-    console.log(result);
-  }
-
-  async close() {
-    const result = this.sqlite.close();
-    console.log(result);
+      console.log('🎉 SQLCipher test completed successfully');
+    } catch (e) {
+      console.error('❌ SQLCipher test failed:', e);
+    }
   }
 }

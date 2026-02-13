@@ -1,4 +1,4 @@
-import { GridLayout, ListView, ItemSpec, Image, GridUnitType, Color, Button, EventData, TextView, ItemEventData, Screen, Application, Utils, Template, FlexboxLayout, ScrollView, Label } from '@nativescript/core';
+import { GridLayout, ListView, ItemSpec, Image, GridUnitType, Color, Button, EventData, TextView, ItemEventData, Screen, Application, Utils, Template, FlexboxLayout, ScrollView, Label, systemAppearance } from '@nativescript/core';
 
 export interface CodigosI {
   nombre: string;
@@ -2251,6 +2251,10 @@ export class Lista extends GridLayout {
   private isDarkmode = false;
   private originalList: any[];
 
+  private actionbarGrid: GridLayout;
+  private actionbarBtn: Button;
+  private actionbarInput: TextView;
+
   constructor() {
     super();
   }
@@ -2262,23 +2266,18 @@ export class Lista extends GridLayout {
 
   onLoaded(): void {
     super.onLoaded();
-    if (this.android) {
-      const uiModeManager = Application.android.context.getSystemService(android.content.Context.UI_MODE_SERVICE);
-      if (uiModeManager != null && uiModeManager.getNightMode() == android.content.res.Configuration.UI_MODE_NIGHT_YES) {
-        this.isDarkmode = true;
-      } else {
-        this.isDarkmode = false;
-      }
-    } else if (this.ios) {
-      const uITraitCollection = UITraitCollection.currentTraitCollection;
-      if (uITraitCollection.userInterfaceStyle == UIUserInterfaceStyle.Dark) {
-        this.isDarkmode = true;
-      } else {
-        this.isDarkmode = false;
-      }
-    }
+    this.isDarkmode = Application.systemAppearance() === 'dark';
+    // 2. Aplicar theme inicial
+    this.applyTheme();
+
+    // 3. Escuchar cambios en tiempo real
+    Application.on('systemAppearanceChanged', (args) => {
+      this.isDarkmode = Application.systemAppearance() === 'dark';
+      this.applyTheme();
+    });
   }
 
+  // CONFIG
   private configGrid() {
     this.addRow(new ItemSpec(1, GridUnitType.AUTO));
     this.addRow(new ItemSpec(1, GridUnitType.STAR));
@@ -2286,12 +2285,12 @@ export class Lista extends GridLayout {
     this.createLista();
   }
 
+  // ACTIONBAR
   private createActionbar() {
     const grid: GridLayout = new GridLayout();
     grid.addColumn(new ItemSpec(1, GridUnitType.AUTO));
     grid.addColumn(new ItemSpec(1, GridUnitType.STAR));
     grid.borderBottomWidth = 0.3;
-    grid.borderBottomColor = new Color('black');
     grid.height = 50;
 
     const btn: Button = new Button();
@@ -2316,12 +2315,9 @@ export class Lista extends GridLayout {
     txt.verticalAlignment = 'middle';
     txt.horizontalAlignment = 'left';
     txt.hint = 'Search';
-    if (this.ios) {
-      txt.color = new Color('black');
-    }
+    txt.style.placeholderColor = this.isDarkmode ? new Color('#bbbbbb') : new Color('#888888');
     txt.borderRadius = 10;
     txt.borderBottomColor = new Color('transparent');
-    txt.backgroundColor = new Color('#ffffff');
     txt.addEventListener('textChange', (args: EventData) => {
       const textView: TextView = args.object as TextView;
       const nombreABuscar: string = textView.text;
@@ -2332,10 +2328,16 @@ export class Lista extends GridLayout {
     grid.row = 0;
 
     this.addChild(grid);
+
+    // Guardar referencias para actualizar colores
+    this.actionbarGrid = grid;
+    this.actionbarBtn = btn;
+    this.actionbarInput = txt;
   }
 
+  // LISTA
   private createLista() {
-    this.originalList = Codigos.slice(); // Store the original list
+    this.originalList = Codigos.slice(); // Copia original
 
     const grid: GridLayout = new GridLayout();
     grid.addColumn(new ItemSpec(1, GridUnitType.AUTO));
@@ -2345,13 +2347,14 @@ export class Lista extends GridLayout {
     this.list.items = this.originalList;
     this.list.row = 1;
     this.list.rowHeight = 50;
+
     this.list.itemTemplate = `
-      <GridLayout rows="*" columns="auto,auto,auto">
-        <Image src="{{bandera}}" width="50" height="50" decodeHeight="50" marginLeft="5" decodeWidth="50" row="0" col="0" borderRadius="5" horizontalAlignment="left"/>
-        <Label text="{{codigo}}" row="0" col="1" horizontalAlignment="left" marginLeft="10" fontWeight="bold"/>
-        <Label text="{{name}}" row="0" col="2" horizontalAlignment="left" marginLeft="10" fontWeight="bold"/>
-      </GridLayout>
-    `;
+            <GridLayout rows="*" columns="auto,auto,auto" backgroundColor="{{darkModeBg}}">
+                <Image src="{{bandera}}" width="50" height="50" decodeHeight="50" marginLeft="5" decodeWidth="50" row="0" col="0" borderRadius="5" horizontalAlignment="left"/>
+                <Label text="{{codigo}}" row="0" col="1" horizontalAlignment="left" marginLeft="10" fontWeight="bold" color="{{darkModeText}}"/>
+                <Label text="{{name}}" row="0" col="2" horizontalAlignment="left" marginLeft="10" fontWeight="bold" color="{{darkModeText}}"/>
+            </GridLayout>
+        `;
 
     this.list.on(ListView.itemTapEvent, (args: ItemEventData) => {
       this.item_selecc = this.list.items[args.index];
@@ -2361,12 +2364,68 @@ export class Lista extends GridLayout {
     this.addChild(this.list);
   }
 
+  // DARK MODE THEME
+  private applyTheme() {
+    const bg = this.isDarkmode ? new Color('#141414') : new Color('#ffffff');
+    const actionbarBg = this.isDarkmode ? new Color('#1f1f1f') : new Color('#f5f5f5');
+    const inputBg = this.isDarkmode ? new Color('#2a2a2a') : new Color('#ffffff');
+    const textColor = this.isDarkmode ? new Color('#ffffff') : new Color('#000000');
+    const borderColor = this.isDarkmode ? new Color('#666666') : new Color('#333333');
+
+    // Fondo general
+    this.backgroundColor = bg;
+
+    // Actionbar
+    this.applyActionbarTheme(this.actionbarGrid, this.actionbarBtn, this.actionbarInput, {
+      actionbarBg,
+      borderColor,
+      textColor,
+      inputBg,
+    });
+
+    // Lista
+    this.applyListTheme();
+  }
+
+  private applyActionbarTheme(grid: GridLayout, btn: Button, txt: TextView, colors: any) {
+    if (!grid || !btn || !txt) return;
+
+    grid.backgroundColor = colors.actionbarBg;
+    grid.borderBottomColor = colors.borderColor;
+
+    btn.color = colors.textColor;
+
+    txt.backgroundColor = colors.inputBg;
+    txt.color = colors.textColor;
+    // txt.hintColor = this.isDarkmode ? new Color("#bbbbbb") : new Color("#888888");
+  }
+
+  private applyListTheme() {
+    if (!this.list) return;
+
+    // Agregar colores dinámicos al contexto
+    this.list.items = this.originalList.map((item) => ({
+      ...item,
+      darkModeBg: this.isDarkmode ? '#141414' : '#ffffff',
+      darkModeText: this.isDarkmode ? '#ffffff' : '#000000',
+    }));
+  }
+
+  // BUSCAR
   private updateList(searchText: string) {
+    let newList;
+
     if (searchText.trim() === '') {
-      this.list.items = this.originalList;
+      newList = this.originalList;
     } else {
-      this.list.items = this.buscarPaises(searchText);
+      newList = this.buscarPaises(searchText);
     }
+
+    this.list.items = newList.map((item) => ({
+      ...item,
+      darkModeBg: this.isDarkmode ? '#141414' : '#ffffff',
+      darkModeText: this.isDarkmode ? '#ffffff' : '#000000',
+    }));
   }
 
   private buscarPaises(texto: string) {

@@ -8,7 +8,7 @@ import { LanguageController } from './class/language.class';
 import { ListaAdaptadorForAndroid } from './class/recycler.adaptador';
 import { ImagePagerAdapter } from './class/modal.android';
 
-declare var developerwym;
+declare var wuilmerj24;
 
 export class GalleryView extends GalleryViewCommon {
   private spinner: android.widget.Spinner;
@@ -183,10 +183,10 @@ export class GalleryView extends GalleryViewCommon {
     this.rv = this.createLista();
     this.rv.setNestedScrollingEnabled(true);
     this.rv.addOnItemTouchListener(
-      new developerwym.plugins.ns.RecyclerTouchListener(
+      new wuilmerj24.plugins.ns.RecyclerTouchListener(
         this._context,
         this.rv,
-        new developerwym.plugins.ns.RecyclerTouchListener.ClickListener({
+        new wuilmerj24.plugins.ns.RecyclerTouchListener.ClickListener({
           onClick: (view: android.view.View, position: number) => {
             try {
               // Obtener el elemento seleccionado en this.files
@@ -209,12 +209,17 @@ export class GalleryView extends GalleryViewCommon {
                   // Actualizar el estado del RadioButton
                   const radio: android.widget.RadioButton = (view as android.widget.LinearLayout).getChildAt(1) as android.widget.RadioButton;
                   radio.setChecked(dataItem.isSelected);
+                  const selectedItems =
+                    this.files
+                      .find((item) => item.isSelected)
+                      ?.data.filter((item) => item.isSelected)
+                      .map((item) => ({
+                        id: item.id,
+                        image: String(item.uri), // content://...
+                      })) ?? [];
 
                   // Notificar el cambio (si es necesario)
-                  this.ref?.get()?.sendEvent(
-                    GalleryView.clickEvent,
-                    this.files.filter((item) => item.isSelected)[0].data.filter((item) => item.isSelected)
-                  );
+                  this.ref?.get()?.sendEvent(GalleryView.clickEvent, selectedItems);
                 } else {
                   // Mostrar un mensaje o notificar que se ha alcanzado el límite de selección
                   CLog('Límite de selección alcanzado');
@@ -235,10 +240,17 @@ export class GalleryView extends GalleryViewCommon {
 
     this.rv.addOnScrollListener(
       new ScrollEvent(this._context, this.rv, {
-        onScrolled(recyclerView, dx, dy) {
+        onScrolled: (recyclerView, dx, dy) => {
           CLog('scroll ', dx, dy);
-          const data = self.files.filter((item) => item.isSelected)[0].data.filter((item) => item.isSelected);
-          self.ref?.get()?.sendEvent(GalleryView.scrollEvent, data, null, dx, dy);
+          const selectedItems =
+            this.files
+              .find((item) => item.isSelected)
+              ?.data.filter((item) => item.isSelected)
+              .map((item) => ({
+                id: item.id,
+                image: String(item.uri), // content://...
+              })) ?? [];
+          self.ref?.get()?.sendEvent(GalleryView.scrollEvent, selectedItems, null, dx, dy);
         },
         onScrollStateChanged: (recyclerView, state) => {
           // CLog("onScrollStateChanged")
@@ -423,29 +435,37 @@ export class GalleryView extends GalleryViewCommon {
 
       itemLayout.addView(img);
       itemLayout.addView(txt);
-
-      // Click en el item
       itemLayout.setOnClickListener(
         new android.view.View.OnClickListener({
           onClick: (view) => {
-            for (let i: number = 0; i < this.files.length; i++) {
-              this.files[i].isSelected = false;
-            }
+            // 1️⃣ Desmarcar todos los álbumes
+            this.files.forEach((f) => (f.isSelected = false));
 
-            this.files[index].isSelected = true;
+            // 2️⃣ Marcar el nuevo álbum
+            const album = this.files[index];
+            album.isSelected = true;
+
+            // 3️⃣ Resetear selección interna
+            album.data.forEach((item) => (item.isSelected = false));
+
+            // 4️⃣ Resetear contador
+            this.contador_items = 0;
+            this.contador.setText(`0/${this.maxItemSelect}`);
+
+            // 5️⃣ Limpiar Glide (muy importante)
             this.mediaLoader.clearAll(this._context, this.rv);
-            this.adaptador.updateData(this.files[index].data);
-            this.iconUriSeleccionad = album.icon;
+
+            // 6️⃣ ACTUALIZAR ADAPTER (esto es lo clave)
+            this.adaptador.updateData(album.data);
+
+            // 7️⃣ Volver el RecyclerView al inicio
+            this.rv.scrollToPosition(0);
+
+            // 8️⃣ Actualizar header (icono + texto)
             this.textAlbunSeleccionado.setText(album.albunName);
-            com.bumptech.glide.Glide.with(context)
-              .load(this.iconUriSeleccionad)
-              .transform(new com.bumptech.glide.load.MultiTransformation(myCollection))
-              .override(sizePx, sizePx)
-              // .centerCrop()
-              .into(this.iconSeleccionado);
-            Utils.setTimeout(() => {
-              popup.dismiss();
-            }, 10);
+            com.bumptech.glide.Glide.with(context).load(album.icon).into(this.iconSeleccionado);
+
+            popup.dismiss();
           },
         })
       );
@@ -540,6 +560,9 @@ export class GalleryView extends GalleryViewCommon {
     rv.setLayoutParams(recyclerParams);
     rv.setBackgroundColor(android.graphics.Color.TRANSPARENT);
     rv.setHasFixedSize(true);
+    rv.setItemViewCacheSize(30);
+    rv.setDrawingCacheEnabled(true);
+    rv.setDrawingCacheQuality(android.view.View.DRAWING_CACHE_QUALITY_HIGH);
     rv.setId(android.view.View.generateViewId());
     rv.setAddStatesFromChildren(true);
     rv.setEnabled(true);

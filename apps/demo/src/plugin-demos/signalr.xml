@@ -7,10 +7,11 @@
         <ScrollView class="h-full">
           <StackLayout>
             <Button text="Conectar" tap="{{ conectar }}" class="btn btn-primary"/>
-            <Button text="Desconectar" tap="{{ desconectar }}" class="btn btn-primary"/>
-            <Button text="State" tap="{{ getStaateConn }}" class="btn btn-primary"/>
+            <Button text="Id" tap="{{ getID }}" class="btn btn-primary"/>
+            <Button text="State" tap="{{ getState }}" class="btn btn-primary"/>
+            <Button text="Stop" tap="{{ stop }}" class="btn btn-primary"/>
             <Button text="Invoke" tap="{{ invoke }}" class="btn btn-primary"/>
-            <Button text="Send" tap="{{ ons }}" class="btn btn-primary"/>
+            <Button text="SetOn" tap="{{ setOn }}" class="btn btn-primary"/>
 
           </StackLayout>
         </ScrollView>

@@ -3,7 +3,7 @@
         <ActionBar title="mapbox-navigation" icon="" class="action-bar">
         </ActionBar>
     </Page.actionBar>
-    <StackLayout class="p-20">
-		<mn:MapboxNavigation width="100%" height="100%"/>
+    <StackLayout>
+      <mn:MapboxNavigation width="100%" height="100%" />
     </StackLayout>
 </Page>

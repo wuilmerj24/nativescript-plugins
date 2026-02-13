@@ -6,7 +6,7 @@
     <StackLayout class="p-20">
         <ScrollView class="h-full">
           <StackLayout>
-            <Image id="lockImage" src="{{icono}}" stretch="aspectFit" horizontalAlignment="center" class="img" tintColor="green"/>
+            <Image id="lockImage" src="{{icono}}" stretch="aspectFit" horizontalAlignment="center" class="img" tintColor="green" width="30" heigth="30"/>
           
             <Button text="Lock" tap="{{ lockscreen }}" class="btn btn-primary"/>
             <Button text="UnLock" tap="{{ unlockscreen }}" class="btn btn-primary"/>

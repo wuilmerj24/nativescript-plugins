@@ -1,46 +1,48 @@
-import { Observable } from '@nativescript/core';
+import { Color, ContentView, Property } from '@nativescript/core';
 
-import { ActivityIndicator, Color, CoreTypes, CSSType, GestureTypes, GridLayout, GridUnitType, Image, ItemSpec, Label, Screen, TapGestureEventData, Utils, View } from '@nativescript/core';
-
-@CSSType('UrlPreview')
-export class UrlPreviewCommon extends View {
-    @GetSetProperty()
-    public url: string = "";
-    @GetSetProperty()
-    bgColor: string = "red";
-    @GetSetProperty()
-    titleTextColor: string = "blue";
-    @GetSetProperty()
-    descriptionTextColor: string = "blue";
-    @GetSetProperty()
-    borderRadiusImage: number = 10;
-    @GetSetProperty()
-    loadingColor: string = "red";
-    @GetSetProperty()
-    borderRadius: number = 0;
-
+export class UrlPreviewCommon extends ContentView {
+  url: string;
+  orientation: 'horizontal' | 'vertical';
+  bgColor: Color;
+  textColor: Color;
+  borderRadius: number;
+  openLink: boolean;
+  android: androidx.cardview.widget.CardView;
+  ios: UIView;
 }
 
-export function GetSetProperty() {
-    return (target, propertyKey: string) => {
-        Object.defineProperty(target, propertyKey, {
-            get: function () {
-                return this['_' + propertyKey];
-            },
-            set: function (value) {
-                if (this['_' + propertyKey] === value) {
-                    return;
-                }
-                if (value === 'true') {
-                    value = true;
-                } else if (value === 'false') {
-                    value = false;
-                }
-                this['_' + propertyKey] = value;
-            },
-            enumerable: true,
-            configurable: true,
-        });
-    };
-}
+export const urlProperty = new Property<UrlPreviewCommon, string>({
+  name: 'url',
+  valueConverter: (value) => value,
+});
+urlProperty.register(UrlPreviewCommon);
 
+export const orientationProperty = new Property<UrlPreviewCommon, string>({
+  name: 'orientation',
+  valueConverter: (value) => value.toString(),
+});
+orientationProperty.register(UrlPreviewCommon);
+
+export const bgColorProperty = new Property<UrlPreviewCommon, Color>({
+  name: 'bgColor',
+  valueConverter: (value) => new Color(value),
+});
+bgColorProperty.register(UrlPreviewCommon);
+
+export const textColorProperty = new Property<UrlPreviewCommon, Color>({
+  name: 'textColor',
+  valueConverter: (value) => new Color(value),
+});
+textColorProperty.register(UrlPreviewCommon);
+
+export const borderRadiusProperty = new Property<UrlPreviewCommon, number>({
+  name: 'borderRadius',
+  valueConverter: (value) => +value,
+});
+borderRadiusProperty.register(UrlPreviewCommon);
+
+export const openLinkProperty = new Property<UrlPreviewCommon, boolean>({
+  name: 'openLink',
+  valueConverter: (value) => value === 'true',
+});
+openLinkProperty.register(UrlPreviewCommon);

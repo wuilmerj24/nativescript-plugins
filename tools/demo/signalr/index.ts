@@ -1,47 +1,62 @@
-import { TypeTransport } from '@wuilmerj24/signalr/enums/types_transport.enums';
+import { TypeTransport } from '@wuilmerj24/signalr/enums/typetransport';
 import { DemoSharedBase } from '../utils';
 import { Signalr } from '@wuilmerj24/signalr';
+import { Utils } from '@nativescript/core';
 
 export class DemoSharedSignalr extends DemoSharedBase {
-
-  signalR: Signalr;
+  signalr: Signalr;
   constructor() {
     super();
+    this.signalr = new Signalr({
+      url: 'http://192.168.18.8:5000/chat',
+      reconnect: true,
+      transport: TypeTransport.WEBSOCKETS,
+      shouldSkipNegotiate: false,
+    });
   }
   async conectar() {
-    this.signalR = new Signalr();
-    await this.signalR.create({
-      url: 'http://192.168.1.100:5000/chat',
-      shouldSkipNegotiate: false,
-      headers: [{ name: 'Content-Type', value: 'application/json' }],
-      transport: TypeTransport.WEBSOCKETS,
-      reconnect: true,
-    }).then((res) => {
-      console.log(res)
-      this.signalR.onClose(() => {
-        console.log("Se desconecto");
-      });
-    }).catch((err) => {
-      console.error(err)
-    })
+    this.signalr.onClose((p) => {
+      console.log('onClose ', p);
+    });
+    this.signalr.onReconnected((p) => {
+      console.log('onReconnected ', p);
+    });
+    await this.signalr.start();
   }
 
-  async desconectar() {
-    await this.signalR.disconnect();
+  getID() {
+    const id = this.signalr.getId();
+    console.log(id);
   }
 
-  async getStaateConn() {
-    alert(this.signalR.isConnected);
-    console.log("id", this.signalR.conectionId());
+  async getState() {
+    const state = await this.signalr.getConnState();
+    console.log(state);
+  }
+
+  async stop() {
+    await this.signalr.stop();
   }
 
   async invoke() {
-    this.signalR.emit('Broadcast', ["wuilmer", "Mensaje"]);
+    const batch = {
+      messages: [
+        { sender: 'wuilmerj24', message: 'Hola' },
+        { sender: 'user2', message: 'Hi' },
+      ],
+    };
+    const payload = [
+      { sender: 'wuilmerj24', message: 'Hola' },
+      { sender: 'user2', message: 'Hi', otro: 's' },
+    ];
+    // await this.signalr.invoke("Broadcast", batch);
+    await this.signalr.invoke('BroadcastObject', payload);
   }
 
-  async ons() {
-    this.signalR.on('NewMessage', (data) => {
-      console.log(data);
+  async setOn() {
+    console.log('evento: OnObjectArray');
+    await this.signalr.on('OnObjectArray', (params) => {
+      console.log('evento OnObjectArray', params[0].sender);
     });
   }
 }

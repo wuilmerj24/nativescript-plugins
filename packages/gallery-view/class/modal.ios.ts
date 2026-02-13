@@ -1,166 +1,224 @@
-import { CLog, IFileData, TipoFile } from '../common';
-import { CloseModalEvento } from '../index.ios';
+import { IFileData } from '../common';
+
+const PREVIEW_CELL = 'PreviewCell';
+const THUMB_CELL = 'ThumbCell';
+
 @NativeClass()
-export class ImageModal extends UIViewController implements UICollectionViewDataSource, UICollectionViewDelegate {
-  public static ObjCProtocols = [UICollectionViewDataSource, UICollectionViewDelegate]; // Exponer los protocolos
+export class ImagePreviewViewController extends UIViewController implements UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UIAdaptivePresentationControllerDelegate {
+  static ObjCProtocols = [UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UIAdaptivePresentationControllerDelegate];
 
-  private images: IFileData[]; // Lista de imágenes
-  private currentIndex: number = 0; // Índice de la imagen actual
-  private titleLabel: UILabel; // Título en el header
-  private carousel: UICollectionView; // Carrusel de imágenes
-  private handler = TapHandler.initWithOwner(new WeakRef(this));
+  // DATA
+  private items: IFileData[] = [];
+  private currentIndex = 0;
 
-  constructor(images: IFileData[], private evento: CloseModalEvento) {
-    super(null);
-    this.images = images;
+  // UI
+  private headerView: UIView;
+  private titleLabel: UILabel;
+  private bodyCollection: UICollectionView;
+  private footerCollection: UICollectionView;
+
+  public onDismiss?: () => void;
+
+  // ---------------------------------------
+  // INIT
+  // ---------------------------------------
+  static initWithItems(items: IFileData[], startIndex = 0) {
+    const vc = ImagePreviewViewController.new() as ImagePreviewViewController;
+    vc.items = items;
+    vc.currentIndex = startIndex;
+    return vc;
   }
 
-  viewDidLoad(): void {
+  // ---------------------------------------
+  // LIFECYCLE
+  // ---------------------------------------
+  viewDidLoad() {
     super.viewDidLoad();
 
-    // Configurar el fondo de la vista
+    this.modalPresentationStyle = UIModalPresentationStyle.FullScreen;
+    if (this.presentationController) {
+      this.presentationController.delegate = this;
+    }
     this.view.backgroundColor = UIColor.blackColor;
 
-    // Header
-    this.setupHeader();
+    this.buildHeader();
+    this.buildFooter(); // primero footer
+    this.buildBody(); // body depende del footer
 
-    // Body con carrusel horizontal
-    this.setupCarousel();
+    this.updateTitle();
   }
 
-  // Configurar el header
-  private setupHeader(): void {
-    const headerView = UIView.alloc().initWithFrame(CGRectMake(0, 0, this.view.frame.size.width, 60));
-    headerView.backgroundColor = UIColor.blackColor;
-    this.view.addSubview(headerView);
+  viewDidAppear(animated: boolean) {
+    super.viewDidAppear(animated);
+    this.bodyCollection.reloadData();
+    this.footerCollection.reloadData();
+  }
 
-    // Botón de cerrar (solo el botón, sin callback)
+  viewWillDisappear(animated: boolean) {
+    super.viewWillDisappear(animated);
+  }
+
+  presentationControllerShouldDismiss(presentationController: UIPresentationController): boolean {
+    return false;
+  }
+
+  // ---------------------------------------
+  // HEADER
+  // ---------------------------------------
+  private buildHeader() {
+    this.headerView = UIView.new();
+    this.headerView.translatesAutoresizingMaskIntoConstraints = false;
+    this.view.addSubview(this.headerView);
+
     const closeButton = UIButton.buttonWithType(UIButtonType.System);
-    closeButton.frame = CGRectMake(10, 15, 40, 40);
-    closeButton.setTitleForState('X', UIControlState.Normal); // Símbolo de cerrar
+    closeButton.setTitleForState('✕', UIControlState.Normal);
     closeButton.setTitleColorForState(UIColor.whiteColor, UIControlState.Normal);
-    closeButton.addTargetActionForControlEvents(this.handler, 'closeModal', UIControlEvents.TouchUpInside);
-    headerView.addSubview(closeButton);
+    closeButton.titleLabel.font = UIFont.systemFontOfSize(22);
+    closeButton.translatesAutoresizingMaskIntoConstraints = false;
+    closeButton.addTargetActionForControlEvents(this, 'closeModal', UIControlEvents.TouchUpInside);
 
-    // Título en el centro (posición de la imagen y contador)
-    this.titleLabel = UILabel.alloc().initWithFrame(CGRectMake(0, 15, this.view.frame.size.width, 30));
-    this.titleLabel.text = `1 / ${this.images.length}`; // Inicializar con la primera imagen
-    this.titleLabel.textAlignment = NSTextAlignment.Center;
+    this.titleLabel = UILabel.new();
+    this.titleLabel.translatesAutoresizingMaskIntoConstraints = false;
     this.titleLabel.textColor = UIColor.whiteColor;
+    this.titleLabel.font = UIFont.systemFontOfSize(14);
+    this.titleLabel.textAlignment = NSTextAlignment.Center;
 
-    headerView.addSubview(this.titleLabel);
+    this.headerView.addSubview(closeButton);
+    this.headerView.addSubview(this.titleLabel);
+
+    NSLayoutConstraint.activateConstraints([this.headerView.topAnchor.constraintEqualToAnchor(this.view.safeAreaLayoutGuide.topAnchor), this.headerView.leadingAnchor.constraintEqualToAnchor(this.view.leadingAnchor), this.headerView.trailingAnchor.constraintEqualToAnchor(this.view.trailingAnchor), this.headerView.heightAnchor.constraintEqualToConstant(44), closeButton.leadingAnchor.constraintEqualToAnchorConstant(this.headerView.leadingAnchor, 16), closeButton.centerYAnchor.constraintEqualToAnchor(this.headerView.centerYAnchor), this.titleLabel.centerXAnchor.constraintEqualToAnchor(this.headerView.centerXAnchor), this.titleLabel.centerYAnchor.constraintEqualToAnchor(this.headerView.centerYAnchor)]);
   }
 
-  public closeModal() {
+  @ObjCMethod()
+  closeModal() {
     this.dismissViewControllerAnimatedCompletion(true, () => {
-      this.evento.onClose();
+      this.onDismiss?.();
     });
   }
 
-  // Configurar el carrusel horizontal
-  private setupCarousel(): void {
-    const layout = UICollectionViewFlowLayout.alloc().init();
-    layout.scrollDirection = UICollectionViewScrollDirection.Horizontal; // Desplazamiento horizontal
-    layout.itemSize = CGSizeMake(this.view.frame.size.width, this.view.frame.size.height - 60); // Tamaño de cada celda
-    layout.minimumLineSpacing = 0; // Espaciado entre celdas
-    layout.minimumInteritemSpacing = 0;
-
-    this.carousel = UICollectionView.alloc().initWithFrameCollectionViewLayout(CGRectMake(0, 60, this.view.frame.size.width, this.view.frame.size.height - 60), layout);
-    this.carousel.backgroundColor = UIColor.blackColor;
-
-    // Registrar la celda personalizada
-    this.carousel.registerClassForCellWithReuseIdentifier(UICollectionViewCell.class(), 'ImageCell');
-
-    // Asignar el dataSource y delegate a esta clase
-    this.carousel.dataSource = this;
-    this.carousel.delegate = this;
-
-    this.carousel.pagingEnabled = true; // Habilitar paginación
-    this.view.addSubview(this.carousel);
+  private updateTitle() {
+    this.titleLabel.text = `${this.currentIndex + 1} / ${this.items.length}`;
   }
 
-  // Método para actualizar el título (posición de la imagen y contador)
-  private updateTitle(index: number): void {
-    this.titleLabel.text = `${index + 1} / ${this.images.length}`;
+  // ---------------------------------------
+  // BODY (MAIN CAROUSEL)
+  // ---------------------------------------
+  private buildBody() {
+    const layout = UICollectionViewFlowLayout.new();
+    layout.scrollDirection = UICollectionViewScrollDirection.Horizontal;
+    layout.minimumLineSpacing = 0;
+    layout.estimatedItemSize = CGSizeZero;
+
+    this.bodyCollection = UICollectionView.alloc().initWithFrameCollectionViewLayout(CGRectZero, layout);
+    this.bodyCollection.translatesAutoresizingMaskIntoConstraints = false;
+    this.bodyCollection.pagingEnabled = true;
+    this.bodyCollection.showsHorizontalScrollIndicator = false;
+    this.bodyCollection.backgroundColor = UIColor.blackColor;
+
+    this.view.addSubview(this.bodyCollection);
+
+    NSLayoutConstraint.activateConstraints([this.bodyCollection.topAnchor.constraintEqualToAnchor(this.headerView.bottomAnchor), this.bodyCollection.leadingAnchor.constraintEqualToAnchor(this.view.leadingAnchor), this.bodyCollection.trailingAnchor.constraintEqualToAnchor(this.view.trailingAnchor), this.bodyCollection.bottomAnchor.constraintEqualToAnchor(this.footerCollection.topAnchor)]);
+
+    this.bodyCollection.registerClassForCellWithReuseIdentifier(UICollectionViewCell.class(), PREVIEW_CELL);
+    this.bodyCollection.dataSource = this;
+    this.bodyCollection.delegate = this;
   }
 
-  // Implementación de UICollectionViewDataSource
+  // Este método asegura que cada celda ocupe todo el tamaño del bodyCollection
+  viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews();
 
-  // Número de ítems en el carrusel
+    if (!this.bodyCollection) return;
+
+    const layout = this.bodyCollection.collectionViewLayout as UICollectionViewFlowLayout;
+
+    if (layout.itemSize.width !== this.bodyCollection.bounds.size.width || layout.itemSize.height !== this.bodyCollection.bounds.size.height) {
+      layout.itemSize = CGSizeMake(this.bodyCollection.bounds.size.width, this.bodyCollection.bounds.size.height);
+      layout.invalidateLayout();
+
+      // Asegura que el carousel quede en la posición correcta después de un layout
+      const indexPath = NSIndexPath.indexPathForRowInSection(this.currentIndex, 0);
+      this.bodyCollection.scrollToItemAtIndexPathAtScrollPositionAnimated(indexPath, UICollectionViewScrollPosition.CenteredHorizontally, false);
+    }
+  }
+
+  // ---------------------------------------
+  // FOOTER (THUMBNAILS)
+  // ---------------------------------------
+  private buildFooter() {
+    const layout = UICollectionViewFlowLayout.new();
+    layout.scrollDirection = UICollectionViewScrollDirection.Horizontal;
+    layout.minimumLineSpacing = 8;
+    layout.minimumInteritemSpacing = 8;
+    layout.itemSize = CGSizeMake(60, 60);
+    layout.estimatedItemSize = CGSizeZero;
+
+    this.footerCollection = UICollectionView.alloc().initWithFrameCollectionViewLayout(CGRectZero, layout);
+    this.footerCollection.translatesAutoresizingMaskIntoConstraints = false;
+    this.footerCollection.backgroundColor = UIColor.blackColor;
+    this.footerCollection.showsHorizontalScrollIndicator = false;
+
+    this.view.addSubview(this.footerCollection);
+
+    NSLayoutConstraint.activateConstraints([this.footerCollection.leadingAnchor.constraintEqualToAnchorConstant(this.view.leadingAnchor, 8), this.footerCollection.trailingAnchor.constraintEqualToAnchorConstant(this.view.trailingAnchor, -8), this.footerCollection.bottomAnchor.constraintEqualToAnchor(this.view.safeAreaLayoutGuide.bottomAnchor), this.footerCollection.heightAnchor.constraintEqualToConstant(80)]);
+
+    this.footerCollection.registerClassForCellWithReuseIdentifier(UICollectionViewCell.class(), THUMB_CELL);
+    this.footerCollection.dataSource = this;
+    this.footerCollection.delegate = this;
+  }
+
+  // ---------------------------------------
+  // DATASOURCE
+  // ---------------------------------------
   collectionViewNumberOfItemsInSection(collectionView: UICollectionView, section: number): number {
-    return this.images.length;
+    return this.items.length;
   }
 
-  // Configurar cada celda con SDWebImage
   collectionViewCellForItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): UICollectionViewCell {
-    // Obtener la celda
-    const cell = collectionView.dequeueReusableCellWithReuseIdentifierForIndexPath('ImageCell', indexPath);
+    const identifier = collectionView === this.bodyCollection ? PREVIEW_CELL : THUMB_CELL;
+    const cell = collectionView.dequeueReusableCellWithReuseIdentifierForIndexPath(identifier, indexPath);
+    if (!cell || !cell.contentView) return UICollectionViewCell.new();
 
-    // Remover vistas previas para evitar duplicados
-    const subviews = cell.contentView.subviews;
-    for (let i = 0; i < subviews.count; i++) {
-      subviews.objectAtIndex(i).removeFromSuperview();
+    while (cell.contentView.subviews.count > 0) {
+      cell.contentView.subviews.lastObject.removeFromSuperview();
     }
 
-    // Configurar la imagen con SDWebImage
-    const imageView = UIImageView.alloc().initWithFrame(cell.contentView.bounds);
-    imageView.contentMode = UIViewContentMode.ScaleAspectFit;
+    const imageView = UIImageView.new();
+    imageView.frame = cell.contentView.bounds;
+    imageView.autoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight;
+    imageView.contentMode = collectionView === this.bodyCollection ? UIViewContentMode.ScaleAspectFit : UIViewContentMode.ScaleAspectFill;
     imageView.clipsToBounds = true;
 
-    const item = this.images[indexPath.item];
-
-    if (item.tipo === TipoFile.IMAGE) {
-      const imageURL = NSURL.URLWithString(item.uri);
-      imageView.sd_setImageWithURLPlaceholderImageOptionsProgressCompleted(
-        imageURL,
-        null, // No placeholder
-        SDWebImageOptions.HighPriority,
-        null,
-        (image, error, cacheType, url) => {
-          if (error) {
-            console.error('Error cargando imagen con SDWebImage:', error.localizedDescription);
-          }
-        }
-      );
-    }
-
     cell.contentView.addSubview(imageView);
+
+    PHImageManager.defaultManager().requestImageForAssetTargetSizeContentModeOptionsResultHandler(this.items[indexPath.row].asset, CGSizeMake(800, 800), PHImageContentMode.AspectFill, null, (image) => {
+      if (image) imageView.image = image;
+    });
+
     return cell;
   }
 
-  // Implementación de UICollectionViewDelegate
+  // ---------------------------------------
+  // DELEGATE
+  // ---------------------------------------
+  scrollViewDidEndDecelerating(scrollView: UIScrollView) {
+    if (scrollView === this.bodyCollection) {
+      const page = Math.round(scrollView.contentOffset.x / scrollView.bounds.size.width);
+      this.currentIndex = page;
+      this.updateTitle();
 
-  // Actualizar el título cuando el usuario se desplaza
-  scrollViewDidEndDecelerating(scrollView: UIScrollView): void {
-    const currentIndex = Math.round(scrollView.contentOffset.x / scrollView.frame.size.width);
-    this.updateTitle(currentIndex);
-  }
-}
-
-@NativeClass()
-class TapHandler extends NSObject {
-  private _ownerRef: WeakRef<any>; // Almacena una referencia débil al owner
-
-  // Método de inicialización que acepta un WeakRef
-  public static initWithOwner(ownerRef: WeakRef<any>): TapHandler {
-    const handler = TapHandler.new() as TapHandler;
-    handler._ownerRef = ownerRef;
-    return handler;
-  }
-
-  // Método que se ejecuta cuando se hace clic en el botón
-  public closeModal(nativeButton: UIButton, nativeEvent: _UIEvent) {
-    // Recuperar el owner desde la referencia débil
-    const owner = this._ownerRef?.get();
-    if (owner) {
-      owner.closeModal();
-    } else {
-      console.log('Owner ya no está disponible (fue liberado de memoria).');
+      const thumbIndex = NSIndexPath.indexPathForRowInSection(page, 0);
+      this.footerCollection.scrollToItemAtIndexPathAtScrollPositionAnimated(thumbIndex, UICollectionViewScrollPosition.CenteredHorizontally, true);
     }
   }
 
-  // Exponer el método `click` a Objective-C
-  public static ObjCExposedMethods = {
-    closeModal: { returns: interop.types.void, params: [interop.types.id, interop.types.id] },
-  };
+  collectionViewDidSelectItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath) {
+    if (collectionView === this.footerCollection) {
+      this.currentIndex = indexPath.row;
+      this.updateTitle();
+
+      const target = NSIndexPath.indexPathForRowInSection(indexPath.row, 0);
+      this.bodyCollection.scrollToItemAtIndexPathAtScrollPositionAnimated(target, UICollectionViewScrollPosition.CenteredHorizontally, true);
+    }
+  }
 }

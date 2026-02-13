@@ -1,27 +1,44 @@
-repositories {
-    google {
-        content {
-            includeGroupByRegex("com\\.android.*")
-            includeGroupByRegex("com\\.google.*")
-            includeGroupByRegex("androidx.*")
-        }
+android {
+    defaultConfig {
+      minSdk 25
+      
+      multiDexEnabled true
     }
-    mavenCentral()
-    gradlePluginPortal()
-    maven {
-        url "https://api.mapbox.com/downloads/v2/releases/maven"
-        authentication {
-            basic(BasicAuthentication)
-        }
-        credentials {
-            username = "mapbox"
-            password = "sk.eyJ1Ijoid3VpbG1lcm0yNCIsImEiOiJjbWVseWt3eHkwbDNrMm1vamFqZmUxdDd0In0.OTh-iNiwYna9GlsdjOrZaw";
-        }
+
+    lintOptions {
+        disable 'InvalidPackage'
+        abortOnError false
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    buildFeatures{
+        viewBinding = true
+    }
+
+    
 }
+
+
+
 
 
 dependencies {
-    implementation "com.mapbox.navigationcore:ui-components:3.12.0-beta.1"
+    implementation "com.mapbox.navigationcore:copilot-ndk27:3.18.0"
+    implementation "com.mapbox.navigationcore:ui-maps-ndk27:3.18.0"
+    implementation "com.mapbox.navigationcore:voice-ndk27:3.18.0"
+    implementation "com.mapbox.navigationcore:tripdata-ndk27:3.18.0"
+    implementation "com.mapbox.navigationcore:android-ndk27:3.18.0"
+    implementation "com.mapbox.navigationcore:ui-components-ndk27:3.18.0"
+    implementation "com.google.android.gms:play-services-location:21.0.1"
+    implementation "androidx.cardview:cardview:1.0.0"
+    implementation "androidx.constraintlayout:constraintlayout:2.2.1"
+    
 }
-

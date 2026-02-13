@@ -1,0 +1,1 @@
+export type SignalrState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'RECONNECTING';

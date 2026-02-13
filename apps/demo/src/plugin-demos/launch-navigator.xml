@@ -6,11 +6,10 @@
     <StackLayout class="p-20">
         <ScrollView class="h-full">
           <StackLayout>
-            <Label text="" id="lblInstalled" textWrap="true"  color="black"/>
-            <Button text="CheckApp" tap="{{checkApp}}" class="btn btn-primary"/>
-            <Button text="fnopenGoogleMaps" tap="{{fnopenGoogleMaps}}" class="btn btn-primary"/>
-            <Button text="fnopenWaze" tap="{{fnopenWaze}}" class="btn btn-primary"/>
-            <Button text="fnopenApple" tap="{{fnopenApple}}" class="btn btn-primary"/>
+            <Button text="Waze" tap="{{ launchWaze }}" class="btn btn-primary"/>
+            <Button text="GoogleMaps" tap="{{ launchGoogle }}" class="btn btn-primary"/>
+            <Button text="Uber" tap="{{ launchUber }}" class="btn btn-primary"/>
+            <Button text="Select" tap="{{ launchNavigatorFN }}" class="btn btn-primary"/>
 
           </StackLayout>
         </ScrollView>

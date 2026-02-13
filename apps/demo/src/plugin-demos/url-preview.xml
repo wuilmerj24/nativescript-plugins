@@ -6,9 +6,9 @@
     <StackLayout class="p-20">
         <ScrollView class="h-full">
           <StackLayout>
-            <up:UrlPreview url="https://github.com/max-prokopenko/react-native-link-preview" bgColor="blue" titleTextColor="red" descriptionTextColor="red" borderRadiusImage="2" loadingColor="black" borderRadius="20"/>
-          <up:UrlPreview url="https://www.npmjs.com/package/@wuilmerj24/url-preview" bgColor="blue" titleTextColor="red" descriptionTextColor="red" borderRadiusImage="2" loadingColor="black" borderRadius="20"/>
-          <up:UrlPreview url="https://youtu.be/jMDtttKGDlc?si=5Ocu-qKyIOZIdpyM" bgColor="blue" titleTextColor="red" descriptionTextColor="red" borderRadiusImage="2" loadingColor="black" borderRadius="20"/>
+            <up:UrlPreview url="https://youtu.be/6wpEGw_By0Q" orientation="horizontal" bgColor="yellow" openLink="true" height="200" textColor="red" borderRadius="10"/>
+            <up:UrlPreview url="https://vm.tiktok.com/ZMDF27VP3" orientation="vertical" bgColor="blue" openLink="true" height="300" marginTop="5" textColor="green" borderRadius="10"/>
+            <up:UrlPreview url="https://www.instagram.com/reel/DSdWAsbiPZY/?igsh=MTIyNnV2MDRyZWoyZg==" orientation="vertical" bgColor="blue" openLink="true" height="300" marginTop="5" textColor="yellow" borderRadius="1" width="80%"/>
 
           </StackLayout>
         </ScrollView>

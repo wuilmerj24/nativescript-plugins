@@ -1,206 +1,299 @@
-import { Application, Color, CoreTypes, Frame, GridLayout, Utils } from '@nativescript/core';
-import { GetSetProperty, UrlPreviewCommon } from './common';
+import { Color, EventData, Utils } from '@nativescript/core';
+import { bgColorProperty, borderRadiusProperty, openLinkProperty, orientationProperty, textColorProperty, UrlPreviewCommon, urlProperty } from './common';
 
-declare var wuilmerj24:any;
+declare var wuilmerj24;
 
 export class UrlPreview extends UrlPreviewCommon {
-    @GetSetProperty()
-    public url: string;
-    @GetSetProperty()
-    bgColor: string;
-    @GetSetProperty()
-    titleTextColor: string;
-    @GetSetProperty()
-    descriptionTextColor: string;
-    @GetSetProperty()
-    borderRadiusImage: number;
-    @GetSetProperty()
-    loadingColor: string;
-    @GetSetProperty()
-    borderRadius: number;
+  private root: android.widget.LinearLayout;
 
-    createNativeView(): Object {
-        const progressBar = new android.widget.ProgressBar(this._context, null, android.R.attr.progressBarStyleLarge);
-        progressBar.setIndeterminate(true);
-        const params = new android.widget.FrameLayout.LayoutParams(
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.gravity = android.view.Gravity.CENTER;
-        progressBar.setLayoutParams(params);
-        const color = new Color(this.loadingColor).android; // tu color personalizado
-        const colorStateList = android.content.res.ColorStateList.valueOf(color);
-        progressBar.setIndeterminateTintList(colorStateList);
+  private image: android.widget.ImageView;
+  private title: android.widget.TextView;
+  private desc: android.widget.TextView;
+  private footer: android.widget.TextView;
+  private textCol: android.widget.LinearLayout;
+  private skeletons: android.view.View[] = [];
+  private shimmerAnim: android.animation.ValueAnimator;
 
-        const card: androidx.cardview.widget.CardView = new androidx.cardview.widget.CardView(this._context);
-        card.setUseCompatPadding(true);
-        card.setId(android.view.View.generateViewId());
-        
-        if(this.bgColor.length>0){
-            card.setBackgroundColor(new Color(this.bgColor).android);
-        }
+  createNativeView(): Object {
+    const card = new androidx.cardview.widget.CardView(this._context);
+    card.setCardElevation(this.dp(2));
+    card.setUseCompatPadding(true);
+    this.root = new android.widget.LinearLayout(this._context);
+    this.root.setPadding(this.dp(8), this.dp(8), this.dp(8), this.dp(8));
+    this.root.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+    card.addView(this.root);
 
-        card.setRadius(this.borderRadius);
+    // IMAGE
+    this.image = new android.widget.ImageView(this._context);
+    this.image.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
 
-        card.addView(progressBar);
-        progressBar.setVisibility(android.view.View.VISIBLE);
-        
+    const imageRadius = new android.graphics.drawable.GradientDrawable();
+    imageRadius.setCornerRadius(this.dp(8));
+    imageRadius.setColor(android.graphics.Color.parseColor('#2f3136'));
+    this.image.setBackground(imageRadius);
+    this.image.setClipToOutline(true);
 
-        const layout = new android.widget.LinearLayout(this._context);
-        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
-        layout.setId(android.view.View.generateViewId());
-        const backgroundDrawable = new android.graphics.drawable.GradientDrawable();
-        backgroundDrawable.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-        backgroundDrawable.setColor(new Color(this.bgColor).android);
-        backgroundDrawable.setCornerRadius(this.borderRadius);
-        backgroundDrawable.setStroke(4, new Color('transparent').android);
+    // TEXT COLUMN
+    this.textCol = new android.widget.LinearLayout(this._context);
+    this.textCol.setOrientation(android.widget.LinearLayout.VERTICAL);
 
-        layout.setBackgroundDrawable(backgroundDrawable);
+    this.title = new android.widget.TextView(this._context);
+    this.title.setTextColor(android.graphics.Color.WHITE);
+    this.title.setTextSize(15);
+    this.title.setTypeface(null, android.graphics.Typeface.BOLD);
+    this.title.setMaxLines(2);
+    this.textCol.addView(this.title);
 
-        wuilmerj24.plugins.ns.JsoupAsyncTask.fetchDocumentAsync(this.url, new wuilmerj24.plugins.ns.JsoupAsyncTask.ConnectionCallback({
-            onComplete: (document: org.jsoup.nodes.Document)=>{   
-                let ogTitle = document.select("meta[property=og:title]").attr("content");
-                if(ogTitle.length===0){
-                    ogTitle = document.title();
-                }
-                let ogDescription = document.select("meta[property=og:description]").attr("content");
-                let metaDescription = document.select("meta[name=description]").attr("content");
-                if(ogDescription.length===0){
-                    ogDescription = metaDescription;
-                }
+    this.desc = new android.widget.TextView(this._context);
+    this.desc.setTextColor(android.graphics.Color.parseColor('#b9bbbe'));
+    this.desc.setTextSize(13);
+    this.desc.setMaxLines(3);
+    this.textCol.addView(this.desc);
 
-                let ogImage = document.select("meta[property=og:image]").attr("content");
-                if(ogImage.length===0){
-                    let images: org.jsoup.select.Elements = document.select("img[src~=(?i)\\.(png|jpe?g|gif)]");
-                    for(let i:number=0;i<images.size();i++){
-                        const src = images.get(i).absUrl("src");
-                        if(src.length>0){
-                            ogImage=src;
-                            break;
-                        }
-                    }
-                }
+    this.footer = new android.widget.TextView(this._context);
+    this.footer.setTextSize(12);
+    this.footer.setTextColor(android.graphics.Color.parseColor('#72767d'));
+    this.footer.setPadding(0, this.dp(4), 0, 0);
+    this.textCol.addView(this.footer);
+    // ---------- SKELETONS ----------
+    const imgSkeleton = this.createSkeleton(this._context, this.dp(72), this.dp(72));
+    const titleSkeleton = this.createSkeleton(this._context, this.dp(180), this.dp(14));
+    const descSkeleton = this.createSkeleton(this._context, this.dp(220), this.dp(12));
 
-                let ogVideo = document.select("meta[property=og:video]").attr("content");
-                if(ogVideo.length===0){
-                    // Elements videos = doc.select("iframe[src*='youtube.com'], iframe[src*='vimeo.com']");
-                    let videos = document.select("iframe[src*='youtube.com'], iframe[src*='vimeo.com']");
-                    if(!videos.isEmpty()){
-                        ogVideo = videos.first().absUrl("src");
-                    }
-                }
+    this.skeletons.push(imgSkeleton, titleSkeleton, descSkeleton);
 
-                let ogSiteName = document.select("meta[property=og:site_name]").attr("content");
-                if(ogSiteName.length===0){
-                    ogSiteName = document.select("meta[property=og:site_name]").attr("content");
-                }
-                
-                // Título
-                const titleView = new android.widget.TextView(this._context);
-                titleView.setTextSize(18);
-                titleView.setTypeface(null, android.graphics.Typeface.BOLD);
-                titleView.setText(ogTitle);
-                if (this.titleTextColor.length>0){
-                    titleView.setTextColor(new Color(this.titleTextColor).android)
-                }
+    // Ocultamos contenido real al inicio
+    this.image.setVisibility(android.view.View.INVISIBLE);
+    this.title.setVisibility(android.view.View.INVISIBLE);
+    this.desc.setVisibility(android.view.View.INVISIBLE);
+    this.footer.setVisibility(android.view.View.INVISIBLE);
 
-                // Descripción
-                const descView = new android.widget.TextView(this._context);
-                descView.setTextSize(14);
-                descView.setText(ogDescription);
-                if (this.descriptionTextColor.length>0){
-                    descView.setTextColor(new Color(this.descriptionTextColor).android);
-                }
+    return card;
+  }
 
-                // Imagen / video
-                const mediaView = new android.widget.ImageView(this._context);
-                mediaView.setAdjustViewBounds(true);
-                mediaView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-                mediaView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    400
-                ));
-                const Glide = com.bumptech.glide.Glide;
-                Glide.with(this._context)
-                    .load(ogImage)
-                    // .transform(new com.bumptech.glide.load.resource.bitmap.CenterCrop(), new com.bumptech.glide.load.resource.bitmap.RoundedCorners(20))
-                    .into(mediaView);
+  private dp(v: number): number {
+    return Math.round(v * android.content.res.Resources.getSystem().getDisplayMetrics().density);
+  }
 
-                // Agregar a layout
-                layout.addView(titleView);
-                layout.addView(descView);
-                layout.addView(mediaView);
-                card.addView(layout);
-                card.setClickable(true);
-                card.setOnClickListener(new android.view.View.OnClickListener({
-                    onClick:(param0)=> {
-                        const intent = new android.content.Intent(
-                            android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse(this.url)
-                        );
-                        intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                        this._context.startActivity(intent);
-                    },
-                }));
-                card.removeView(progressBar);
-            },
-            onError: (e: java.io.IOException)=>{
-                console.log("error",e);
-                card.removeView(progressBar);
-            }
-        }));
-        return card;
+  private createSkeleton(ctx: android.content.Context, w: number, h: number): android.view.View {
+    const v = new android.view.View(ctx);
+    const bg = new android.graphics.drawable.GradientDrawable();
+    bg.setCornerRadius(this.dp(6));
+    bg.setColor(android.graphics.Color.parseColor('#1e1f22'));
+    v.setBackground(bg);
+    v.setLayoutParams(new android.widget.LinearLayout.LayoutParams(w, h));
+    return v;
+  }
+
+  private applyOrientation() {
+    if (!this.root || !this.image || !this.textCol) return;
+
+    this.root.removeAllViews();
+
+    if (this.orientation === 'vertical') {
+      // ===== VERTICAL =====
+      this.root.setOrientation(android.widget.LinearLayout.VERTICAL);
+      this.root.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+
+      this.image.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.widget.LinearLayout.LayoutParams.MATCH_PARENT, this.dp(180)));
+
+      this.textCol.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.widget.LinearLayout.LayoutParams.MATCH_PARENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+
+      this.textCol.setPadding(0, this.dp(10), 0, 0);
+      this.textCol.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+
+      this.title.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+      this.desc.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+
+      this.root.addView(this.image);
+      this.root.addView(this.textCol);
+      this.footer.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+    } else {
+      // ===== HORIZONTAL =====
+      this.root.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+      this.root.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+      this.image.setLayoutParams(new android.widget.LinearLayout.LayoutParams(this.dp(72), this.dp(72)));
+
+      this.textCol.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+      this.textCol.setPadding(this.dp(12), 0, 0, 0);
+      this.textCol.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+      this.title.setGravity(android.view.Gravity.START);
+      this.desc.setGravity(android.view.Gravity.START);
+
+      this.root.addView(this.image);
+      this.root.addView(this.textCol);
+      this.footer.setGravity(android.view.Gravity.START);
     }
+  }
+  private fetcher;
 
-    public getData(url: string): Promise<{ title: string, description: string, image: string }> {
-        return new Promise((rs, rj) => {
-            try {
-                console.log("url ",url)
-                wuilmerj24.plugins.ns.JsoupAsyncTask.fetchDocumentAsync(url, new wuilmerj24.plugins.ns.JsoupAsyncTask.ConnectionCallback({
-                    onComplete: (document: org.jsoup.nodes.Document) => {
-                        let ogTitle = document.select("meta[property=og:title]").attr("content");
-                        if (ogTitle.length === 0) {
-                            ogTitle = document.title();
-                        }
-                        let ogDescription = document.select("meta[property=og:description]").attr("content");
-                        let metaDescription = document.select("meta[name=description]").attr("content");
-                        if (ogDescription.length === 0) {
-                            ogDescription = metaDescription;
-                        }
+  onLoaded(): void {
+    super.onLoaded();
+    this.fetcher = new wuilmerj24.plugins.ns.UrlPreviewFetcher();
+  }
 
-                        let ogImage = document.select("meta[property=og:image]").attr("content");
-                        if (ogImage.length === 0) {
-                            let images: org.jsoup.select.Elements = document.select("img[src~=(?i)\\.(png|jpe?g|gif)]");
-                            for (let i: number = 0; i < images.size(); i++) {
-                                const src = images.get(i).absUrl("src");
-                                if (src.length > 0) {
-                                    ogImage = src;
-                                    break;
-                                }
-                            }
-                        }
+  onUnloaded() {
+    super.onUnloaded();
+    // limpiar shimmer
+    this.shimmerAnim?.cancel();
+    this.skeletons.forEach((v) => v.setVisibility(android.view.View.GONE));
+    this.skeletons = [];
+  }
 
-                        let ogVideo = document.select("meta[property=og:video]").attr("content");
-                        if (ogVideo.length === 0) {
-                            // Elements videos = doc.select("iframe[src*='youtube.com'], iframe[src*='vimeo.com']");
-                            let videos = document.select("iframe[src*='youtube.com'], iframe[src*='vimeo.com']");
-                            if (!videos.isEmpty()) {
-                                ogVideo = videos.first().absUrl("src");
-                            }
-                        }
+  // ---------- SHIMMER ----------
+  private startShimmer() {
+    this.shimmerAnim = android.animation.ValueAnimator.ofFloat(Array.create('float', 2));
 
-                        rs({title:ogTitle,description:ogDescription,image:ogImage || ogVideo});
-                       
-                    },
-                    onError: (e: java.io.IOException) => {
-                        console.log("error", e);
-                        rj(e.getMessage())
-                    }
-                }));
-            } catch (error) {
-                console.log(error)
-                rj(error);
+    this.shimmerAnim.setDuration(900);
+    this.shimmerAnim.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+
+    this.shimmerAnim.addUpdateListener(
+      new android.animation.ValueAnimator.AnimatorUpdateListener({
+        onAnimationUpdate: (anim) => {
+          const v = anim.getAnimatedValue() as number;
+
+          this.skeletons.forEach((view) => {
+            const w = view.getWidth() || 200;
+
+            const colors = Array.create('int', 3);
+            colors[0] = android.graphics.Color.parseColor('#1e1f22');
+            colors[1] = android.graphics.Color.parseColor('#2b2d31');
+            colors[2] = android.graphics.Color.parseColor('#1e1f22');
+
+            const positions = Array.create('float', 3);
+
+            positions[0] = 0.0;
+            positions[1] = 0.5;
+            positions[2] = 1.0;
+
+            const shader = new android.graphics.LinearGradient(-w + 2 * w * v, 0, 2 * w * v, 0, colors, positions, android.graphics.Shader.TileMode.CLAMP);
+
+            const paint = new android.graphics.Paint();
+            paint.setShader(shader);
+
+            view.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, paint);
+          });
+        },
+      })
+    );
+
+    this.shimmerAnim.start();
+  }
+
+  private stopShimmer() {
+    this.shimmerAnim?.cancel();
+    this.skeletons.forEach((v) => v.setVisibility(android.view.View.GONE));
+  }
+
+  private showContent() {
+    this.stopShimmer();
+    this.title.setVisibility(android.view.View.VISIBLE);
+    this.desc.setVisibility(android.view.View.VISIBLE);
+    this.footer.setVisibility(android.view.View.VISIBLE);
+  }
+
+  private loadImage(view: android.widget.ImageView, url: string) {
+    const transition = com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(300);
+
+    com.bumptech.glide.Glide.with(view.getContext()).load(url).transition(transition).centerCrop().into(view);
+
+    view.setVisibility(android.view.View.VISIBLE);
+  }
+
+  // @ts-ignore
+  get android(): androidx.cardview.widget.CardView {
+    return this.nativeView;
+  }
+
+  [urlProperty.setNative](value: string) {
+    this.url = value;
+    Utils.setTimeout(() => {
+      this.fetcher.fetch(
+        this.url,
+        new wuilmerj24.plugins.ns.UrlPreviewFetcher.Callback({
+          onResult: (result: any, error: string) => {
+            if (error) return;
+
+            const data = Utils.dataDeserialize(result);
+
+            // IMAGE
+            if (data.image) {
+              this.loadImage(this.image, data.image);
+            } else {
+              this.image.setVisibility(android.view.View.GONE);
             }
+
+            this.title.setText(data.title || '');
+            // this.title.setTextColor(this.textColor);
+            let description = data.description;
+
+            if (!description && data.isVideo && data.siteName?.toLowerCase().includes('youtube')) {
+              description = 'Toca para ver el video';
+            }
+
+            if (description) {
+              this.desc.setText(description);
+              this.desc.setVisibility(android.view.View.VISIBLE);
+            } else {
+              this.desc.setVisibility(android.view.View.GONE);
+            }
+
+            // this.desc.setTextColor(this.textColor);
+
+            const footer = [];
+            if (data.isVideo) footer.push('🎥 Video');
+            if (data.siteName) footer.push(data.siteName);
+            this.footer.setText(footer.join(' • '));
+            // this.footer.setTextColor(this.textColor);
+            this.showContent();
+
+            const ctx = this._context;
+            const target = data.videoUrl || data.url || this.url;
+          },
         })
+      );
+    }, 500);
+  }
+
+  [orientationProperty.setNative](value: string) {
+    if (value == 'vertical') {
+      this.orientation = 'vertical';
+    } else if (value == 'horizontal') {
+      this.orientation = 'horizontal';
     }
+    this.applyOrientation();
+  }
+
+  [bgColorProperty.setNative](value: Color) {
+    this.bgColor = value;
+    this.android.setCardBackgroundColor(this.bgColor.android);
+  }
+
+  [textColorProperty.setNative](value: Color) {
+    this.textColor = value;
+    this.title.setTextColor(this.textColor.android);
+    this.desc.setTextColor(this.textColor.android);
+  }
+
+  [borderRadiusProperty.setNative](value: number) {
+    this.borderRadius = value;
+    this.android.setCardElevation(10);
+    this.android.setRadius(this.dp(this.borderRadius));
+  }
+
+  [openLinkProperty.setNative](value: boolean) {
+    this.openLink = value;
+    this.off('tap');
+
+    if (value) {
+      this.on('tap', (args: EventData) => {
+        if (this.url) {
+          Utils.openUrl(this.url);
+        }
+      });
+    }
+  }
 }

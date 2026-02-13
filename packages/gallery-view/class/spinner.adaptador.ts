@@ -1,68 +1,6 @@
 import { Color } from '@nativescript/core';
 import { IFiles } from '../common';
 
-// @NativeClass()
-// export class SpinnerDataAdapter extends android.widget.BaseAdapter {
-//   private drawableError: number = -1;
-//   private drawablePlaceholder: number = -1;
-//   private mediaLoader: MediaLoader;
-//   constructor(private files: Array<IFiles>, private context: android.content.Context, private bgColor: string, private textColor: string) {
-//     super();
-
-//     this.drawableError = context.getResources().getIdentifier('error', 'drawable', context.getPackageName());
-//     this.drawablePlaceholder = context.getResources().getIdentifier('images', 'drawable', context.getPackageName());
-//     this.mediaLoader = GlideMediaLoader.getInstance();
-//   }
-
-//   public getItemId(param0: number): number {
-//     return 0;
-//   }
-
-//   public getItem(param0: number) {
-//     this.files[param0];
-//   }
-
-//   public getCount(): number {
-//     return this.files.length;
-//   }
-
-//   public getView(position: number, convertView: android.view.View, parent: android.view.ViewGroup): android.view.View {
-//     const linearL: android.widget.LinearLayout = new android.widget.LinearLayout(this.context);
-//     const image: android.widget.ImageView = new android.widget.ImageView(this.context);
-//     const txt: android.widget.TextView = new android.widget.TextView(this.context);
-//     linearL.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.widget.LinearLayout.LayoutParams.MATCH_PARENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
-//     linearL.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-//     linearL.setGravity(android.view.Gravity.CENTER_VERTICAL);
-//     linearL.setBackgroundColor(new Color(this.bgColor).android);
-//     linearL.addView(image);
-
-//     txt.setText(java.lang.String.valueOf(` ${this.files[position].albunName}`));
-//     txt.setTextSize(19);
-//     txt.setTextColor(new Color(this.textColor).android);
-//     this.mediaLoader.loadImage(parent.getContext(), this.files[position].icon, image, 100, 100);
-//     linearL.addView(txt);
-//     return linearL;
-//   }
-
-//   public getDropDownView(position: number, convertView: android.view.View, parent: android.view.ViewGroup): android.view.View {
-//     const linearL: android.widget.LinearLayout = new android.widget.LinearLayout(this.context);
-//     const image: android.widget.ImageView = new android.widget.ImageView(this.context);
-//     const txt: android.widget.TextView = new android.widget.TextView(this.context);
-//     linearL.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 120));
-//     linearL.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-//     linearL.setGravity(android.view.Gravity.CENTER_VERTICAL);
-//     linearL.setBackgroundColor(new Color(this.bgColor).android);
-//     this.mediaLoader.loadImage(parent.getContext(), this.files[position].icon, image, 100, 100);
-
-//     txt.setText(java.lang.String.valueOf(` ${this.files[position].albunName}`));
-//     txt.setTextSize(19);
-//     txt.setTextColor(new Color(this.textColor).android);
-//     linearL.addView(image);
-//     linearL.addView(txt);
-//     return linearL;
-//   }
-// }
-
 interface MediaLoader {
   loadImage(context: android.content.Context, url: string, imageView: android.widget.ImageView, maxWidt: number, maxHeigth: number);
   loadVideoThumbnail(context: android.content.Context, url: string, imageView: android.widget.ImageView);

@@ -1,21 +1,27 @@
 import { DemoSharedBase } from '../utils';
-import { StoreUpdate } from '@wuilmerj24/store-update';
+import { StoreUpdate, UpdateOptions } from '@wuilmerj24/store-update';
 
 export class DemoSharedStoreUpdate extends DemoSharedBase {
-
-  store: StoreUpdate = new StoreUpdate();
+  private storeUpdate: StoreUpdate;
   async testIt() {
-    console.log('appid version ', this.store.getAppId());
-    console.log('local version ', this.store.getLocalVersion());
-    console.log('nube version ', await this.store.getNubeVersion());
-
+    this.storeUpdate = new StoreUpdate({
+      // __debugForceUpdate:true,
+      forceUpdate: true,
+      message: 'MESSA',
+      titleButton: 'TITULO',
+      buttonColor: 'red',
+      messageColor: 'blue',
+      screenBackgroundColor: 'green',
+      titleButtonColor: 'yellow',
+    });
+    const data = await this.storeUpdate.checkUpdate();
   }
 
-  actualizar() {
-    this.store.updateApp(true, "Update", "Cancel", "Need update app", true, "red", "green", "yellow", "blue");
-  }
-
-  nativeupdate() {
-    this.store.checkUpdateNative();
+  async updateAndroid() {
+    if (__ANDROID__) {
+      console.log('is android');
+      const d = await this.storeUpdate.updateInApp();
+      console.log(d);
+    }
   }
 }
