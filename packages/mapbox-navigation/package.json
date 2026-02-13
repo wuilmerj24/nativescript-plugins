@@ -1,7 +1,7 @@
 {
   "name": "@wuilmerj24/mapbox-navigation",
-  "version": "0.1.0-beta.1",
-  "description": "Add a plugin description",
+  "version": "1.0.0-beta.1",
+  "description": "is a NativeScript plugin that provides turn-by-turn navigation powered by Mapbox Directions and Navigation APIs for Android and iOS.",
   "main": "index",
   "types": "index.d.ts",
   "nativescript": {
